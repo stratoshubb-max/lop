@@ -13,7 +13,17 @@
     let toastTimer;
     let currentTab = 'all';
     let searchTerm = '';
+    let searchTimer;
     let isPublishing = false;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    function apiHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    }
 
     const icons = {
         reply: '<svg viewBox="0 0 24 24" fill="none"><path d="M20 11.3a7 7 0 0 1-7.5 6.7 8.4 8.4 0 0 1-3.3-.7L5 19l.9-3.1A6.5 6.5 0 0 1 4 11.3 7 7 0 0 1 11.5 5 7 7 0 0 1 20 11.3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
@@ -112,12 +122,58 @@
             </div>
             <div class="post-actions">
                 <button class="post-action action-reply" type="button" data-action="reply" aria-label="الرد على المنشور">${icons.reply}<span data-count="replies">${number(post.replies)}</span></button>
-                <button class="post-action action-repost" type="button" data-action="repost" aria-label="إعادة نشر">${icons.repost}<span data-count="reposts">${number(post.reposts)}</span></button>
-                <button class="post-action action-like" type="button" data-action="like" aria-label="الإعجاب بالمنشور">${icons.like}<span data-count="likes">${number(post.likes)}</span></button>
-                <button class="post-action action-bookmark" type="button" data-action="bookmark" aria-label="حفظ المنشور">${icons.bookmark}</button>
+                <button class="post-action action-repost${post.is_reposted ? ' is-active' : ''}" type="button" data-action="repost" aria-label="إعادة نشر">${icons.repost}<span data-count="reposts">${number(post.reposts)}</span></button>
+                <button class="post-action action-like${post.is_liked ? ' is-active' : ''}" type="button" data-action="like" aria-label="الإعجاب بالمنشور">${icons.like}<span data-count="likes">${number(post.likes)}</span></button>
+                <button class="post-action action-bookmark${post.is_bookmarked ? ' is-active' : ''}" type="button" data-action="bookmark" aria-label="حفظ المنشور">${icons.bookmark}</button>
                 <button class="post-action action-share" type="button" data-action="share" aria-label="مشاركة المنشور">${icons.share}</button>
             </div>`;
         return article;
+    }
+
+    function applyPostState(card, post) {
+        if (!card || !post) return;
+        const counts = { likes: post.likes, reposts: post.reposts, replies: post.replies };
+        Object.entries(counts).forEach(([key, value]) => {
+            const count = card.querySelector(`[data-count="${key}"]`);
+            if (count) count.textContent = number(value);
+        });
+        const states = [
+            ['like', post.is_liked],
+            ['repost', post.is_reposted],
+            ['bookmark', post.is_bookmarked]
+        ];
+        states.forEach(([type, active]) => {
+            card.querySelector(`[data-action="${type}"]`)?.classList.toggle('is-active', Boolean(active));
+        });
+        card.dataset.following = post.following ? 'true' : 'false';
+    }
+
+    async function syncPostAction(card, actionType) {
+        const response = await fetch(`/api/posts/${encodeURIComponent(card.dataset.postId)}/${actionType}/`, {
+            method: 'POST',
+            headers: apiHeaders(),
+            body: JSON.stringify({})
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'تعذّر حفظ التغيير');
+        applyPostState(card, payload.post);
+        return payload;
+    }
+
+    async function toggleFollow(handle, button, wasFollowing) {
+        const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}/follow/`, {
+            method: 'POST',
+            headers: apiHeaders(),
+            body: JSON.stringify({})
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'تعذّرت متابعة الحساب');
+        const following = Boolean(payload.following);
+        button.classList.toggle('is-following', following);
+        button.textContent = following ? 'تتابع' : 'تابع';
+        button.setAttribute('aria-pressed', following ? 'true' : 'false');
+        replayClass(button, 'is-popping', 520);
+        return following;
     }
 
     function updateVisibility() {
@@ -144,28 +200,38 @@
         if (!postInput || !publishButton || isPublishing) return;
         const body = postInput.value.trim();
         if (!body) return;
+        const replyTo = postInput.dataset.replyTo || '';
         isPublishing = true;
         updateComposerState();
-        publishButton.textContent = 'جارٍ النشر…';
+        publishButton.textContent = replyTo ? 'جارٍ الرد…' : 'جارٍ النشر…';
         try {
-            const response = await fetch('/api/posts/', {
+            const endpoint = replyTo ? `/api/posts/${encodeURIComponent(replyTo)}/reply/` : '/api/posts/';
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: apiHeaders(),
                 body: JSON.stringify({ body })
             });
             const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'تعذّر النشر');
-            const card = renderPost(payload.post);
-            feedList.prepend(card);
+            if (!response.ok) throw new Error(payload.error || 'تعذّر الحفظ');
+            if (replyTo) {
+                const target = feedList.querySelector(`[data-post-id="${CSS.escape(replyTo)}"]`);
+                if (target) applyPostState(target, payload.post);
+                showToast('وصل ردّك إلى المحادثة');
+            } else {
+                const card = renderPost(payload.post);
+                feedList.prepend(card);
+                currentTab = 'all';
+                document.querySelectorAll('[data-feed-tab]').forEach(tab => {
+                    const active = tab.dataset.feedTab === 'all';
+                    tab.classList.toggle('is-active', active);
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                updateVisibility();
+                showToast('تركْت أثرًا جديدًا في المساحة');
+            }
             postInput.value = '';
-            currentTab = 'all';
-            document.querySelectorAll('[data-feed-tab]').forEach(tab => {
-                const active = tab.dataset.feedTab === 'all';
-                tab.classList.toggle('is-active', active);
-                tab.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-            updateVisibility();
-            showToast('تركْت أثرًا جديدًا في المساحة');
+            delete postInput.dataset.replyTo;
+            resetComposerMode();
         } catch (error) {
             showToast(error.message || 'حدث خطأ غير متوقع');
         } finally {
@@ -191,6 +257,19 @@
         document.body.style.overflow = '';
     }
 
+    async function loadSearchResults(query) {
+        try {
+            const response = await fetch(`/api/posts/?q=${encodeURIComponent(query)}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const payload = await response.json();
+            if (!response.ok || query !== searchTerm) return;
+            feedList.replaceChildren(...payload.posts.map(renderPost));
+            updateVisibility();
+        } catch (error) {
+            // Keep the local filter visible if the network is temporarily unavailable.
+            updateVisibility();
+        }
+    }
+
     function filterFromSearch() {
         if (!searchInput) return;
         searchTerm = searchInput.value.trim();
@@ -200,6 +279,19 @@
                 : 'اكتب كلمة للبحث في الأصوات والمنشورات والمواضيع.';
         }
         updateVisibility();
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(() => loadSearchResults(searchTerm), 180);
+    }
+
+    function setComposerMode(isReply) {
+        const label = document.querySelector('.compose-heading .section-label');
+        if (label) label.textContent = isReply ? 'ردّك' : 'بصوتك';
+        if (postInput) postInput.placeholder = isReply ? 'اكتب ردّك على هذا الأثر…' : 'ما الأثر الذي تريد أن تتركه اليوم؟';
+        if (publishButton) publishButton.textContent = isReply ? 'أرسل الرد' : 'انشر الأثر';
+    }
+
+    function resetComposerMode() {
+        setComposerMode(false);
     }
 
     function scrollToComposer() {
@@ -240,11 +332,21 @@
 
         const follow = event.target.closest('[data-follow-button]');
         if (follow) {
-            const following = follow.classList.toggle('is-following');
-            follow.textContent = following ? 'تتابع' : 'تابع';
-            follow.setAttribute('aria-pressed', following ? 'true' : 'false');
-            replayClass(follow, 'is-popping', 520);
-            showToast(following ? 'أضفناه إلى دوائرك' : 'أزلناه من دوائرك');
+            const wasFollowing = follow.classList.contains('is-following');
+            const handle = follow.dataset.handle;
+            follow.classList.toggle('is-following', !wasFollowing);
+            follow.textContent = wasFollowing ? 'تابع' : 'تتابع';
+            follow.setAttribute('aria-pressed', wasFollowing ? 'false' : 'true');
+            follow.disabled = true;
+            toggleFollow(handle, follow, wasFollowing)
+                .then(following => showToast(following ? 'أضفناه إلى دوائرك' : 'أزلناه من دوائرك'))
+                .catch(error => {
+                    follow.classList.toggle('is-following', wasFollowing);
+                    follow.textContent = wasFollowing ? 'تتابع' : 'تابع';
+                    follow.setAttribute('aria-pressed', wasFollowing ? 'true' : 'false');
+                    showToast(error.message || 'لم يتم حفظ التغيير');
+                })
+                .finally(() => { follow.disabled = false; });
             return;
         }
 
@@ -288,21 +390,35 @@
         if (!card) return;
 
         const actionType = action.dataset.action;
-        if (actionType === 'like' || actionType === 'repost') {
-            const active = action.classList.toggle('is-active');
-            const count = action.querySelector(`[data-count="${actionType === 'like' ? 'likes' : 'reposts'}"]`);
-            if (count) count.textContent = number(numericValue(count.textContent) + (active ? 1 : -1));
-            replayClass(action, actionType === 'like' ? 'is-popping' : 'is-spinning');
-            if (active) showToast(actionType === 'like' ? 'وصل إعجابك' : 'أعدت نشر هذا الأثر');
-            return;
-        }
-        if (actionType === 'bookmark') {
-            const active = action.classList.toggle('is-active');
-            replayClass(action, 'is-dropping', 620);
-            showToast(active ? 'حُفظ في مجموعتك' : 'أزيل من مجموعتك');
+        if (actionType === 'like' || actionType === 'repost' || actionType === 'bookmark') {
+            const wasActive = action.classList.contains('is-active');
+            const countKey = actionType === 'like' ? 'likes' : actionType === 'repost' ? 'reposts' : null;
+            action.classList.toggle('is-active', !wasActive);
+            if (countKey) {
+                const count = action.querySelector(`[data-count="${countKey}"]`);
+                if (count) count.textContent = number(numericValue(count.textContent) + (wasActive ? -1 : 1));
+            }
+            replayClass(action, actionType === 'like' ? 'is-popping' : actionType === 'repost' ? 'is-spinning' : 'is-dropping', 620);
+            action.disabled = true;
+            syncPostAction(card, actionType)
+                .then(payload => {
+                    const active = payload.active;
+                    showToast(actionType === 'like' ? (active ? 'وصل إعجابك' : 'أزيل إعجابك') : actionType === 'repost' ? (active ? 'أعدت نشر هذا الأثر' : 'أزلت إعادة النشر') : (active ? 'حُفظ في مجموعتك' : 'أزيل من مجموعتك'));
+                })
+                .catch(error => {
+                    action.classList.toggle('is-active', wasActive);
+                    if (countKey) {
+                        const count = action.querySelector(`[data-count="${countKey}"]`);
+                        if (count) count.textContent = number(numericValue(count.textContent) + (wasActive ? 1 : -1));
+                    }
+                    showToast(error.message || 'لم يتم حفظ التغيير');
+                })
+                .finally(() => { action.disabled = false; });
             return;
         }
         if (actionType === 'reply') {
+            if (postInput) postInput.dataset.replyTo = card.dataset.postId;
+            setComposerMode(true);
             scrollToComposer();
             showToast('اكتب ردّك في مساحة الكتابة');
             return;
