@@ -6,12 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#fbf9f4">
     <meta name="csrf-token" content="{{ csrf_token_value }}">
+    <meta name="auth-status" content="{{ authenticated|yesno:'true,false' }}">
     <meta name="description" content="أثر — شبكة عربية للأفكار التي تستحق أن تبقى.">
     <title>أثر — مساحة لما يستحق أن يبقى</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=7">
 </head>
 <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -34,7 +35,13 @@
             </a>
 
             <div class="topbar-actions">
+                {% if authenticated %}
                 <button class="header-cta" type="button" data-open-composer>اكتب أثرًا <span>↓</span></button>
+                <button class="header-account" type="button" data-logout>تسجيل الخروج</button>
+                {% else %}
+                <button class="header-auth-link" type="button" data-open-auth data-auth-mode="login">تسجيل الدخول</button>
+                <button class="header-cta" type="button" data-open-auth data-auth-mode="register">انضم إلى أثر <span>↓</span></button>
+                {% endif %}
                 <button class="icon-button search-trigger" id="searchTrigger" type="button" aria-label="بحث">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
                 </button>
@@ -69,6 +76,8 @@
                             </div>
                             <button class="follow-button{% if person.following %} is-following{% endif %}" type="button" data-follow-button data-handle="{{ person.handle }}" aria-pressed="{{ person.following|yesno:'true,false' }}">{% if person.following %}تتابع{% else %}تابع{% endif %}</button>
                         </div>
+                        {% empty %}
+                        <p class="side-empty">لا توجد حسابات مقترحة بعد.</p>
                         {% endfor %}
                     </div>
                 </section>
@@ -77,14 +86,12 @@
                     <span class="letter-glow" aria-hidden="true"></span>
                     <div class="card-eyebrow"><span class="mini-dot"></span>رسالة من أثر</div>
                     <h2>أفكار تستحق<br><em>وقتًا أطول.</em></h2>
-                    <p>نشرة صغيرة، مرة كل أسبوع. مختارات من الأصوات التي تضيف شيئًا.</p>
-                    <form class="newsletter-form" id="newsletterForm">
-                        <label class="sr-only" for="newsletterEmail">بريدك الإلكتروني</label>
-                        <input id="newsletterEmail" type="email" placeholder="بريدك الإلكتروني" required>
-                        <button type="submit" aria-label="الاشتراك في النشرة">
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
-                    </form>
+                    <p>أفكار تستحق وقتًا أطول، وأصوات تجد مكانها بين دوائرك.</p>
+                    {% if authenticated %}
+                    <button type="button" class="letter-action" data-open-composer>اكتب أول أثر <span>↘</span></button>
+                    {% else %}
+                    <button type="button" class="letter-action" data-open-auth data-auth-mode="register">انضم إلى المساحة <span>↘</span></button>
+                    {% endif %}
                 </section>
 
                 <footer class="rail-footer">
@@ -122,12 +129,13 @@
             </section>
 
             <section class="compose-card" id="composeCard">
+                {% if authenticated %}
                 <div class="compose-heading">
                     <span class="section-label">بصوتك</span>
                     <span class="compose-privacy"><span class="privacy-dot"></span>عام</span>
                 </div>
                 <div class="compose-row">
-                    <span class="avatar avatar-large tone-lime">أ</span>
+                    <span class="avatar avatar-large tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>
                     <div class="compose-content">
                         <label class="sr-only" for="postInput">ماذا يدور في بالك؟</label>
                         <textarea id="postInput" class="compose-input" maxlength="500" rows="2" placeholder="ما الأثر الذي تريد أن تتركه اليوم؟"></textarea>
@@ -144,6 +152,13 @@
                         </div>
                     </div>
                 </div>
+                {% else %}
+                <div class="auth-gate">
+                    <span class="auth-gate-icon">✦</span>
+                    <div><strong>صوتك ينتمي إلى المساحة.</strong><span>أنشئ حسابًا مجانيًا لتكتب وتتفاعل مع الآخرين.</span></div>
+                    <button type="button" class="auth-gate-button" data-open-auth data-auth-mode="register">سجّل الآن <span>↘</span></button>
+                </div>
+                {% endif %}
             </section>
 
             <div class="feed-list" id="feedList">
@@ -209,11 +224,12 @@
                     <button class="side-nav-cta" type="button" data-open-composer><span>اكتب أثرًا جديدًا</span><b>↘</b></button>
                 </nav>
 
-                <section class="profile-card">
+                <section class="profile-card{% if not authenticated %} profile-card-guest{% endif %}">
                     <div class="profile-card-top">
                         <span class="section-label">مساحتك</span>
                         <button class="mini-menu" type="button" data-toast="إعدادات الحساب قريبًا" aria-label="إعدادات الحساب"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
                     </div>
+                    {% if authenticated %}
                     <div class="profile-main">
                         <span class="avatar avatar-profile tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>
                         <div><strong>{{ viewer.display_name }}</strong><span>@{{ viewer.handle }}</span></div>
@@ -221,6 +237,9 @@
                     <p class="profile-bio">{{ viewer.bio|default:'أجمع الأشياء التي تجعل الأيام أوسع.' }}</p>
                     <div class="profile-stats"><span><b>{{ viewer_stats.posts }}</b> أثر</span><span><b>{{ viewer_stats.followers }}</b> يتابعونك</span><span><b>{{ viewer_stats.following }}</b> تتابع</span></div>
                     <button class="profile-action" type="button" data-open-composer>اكتب أثرًا جديدًا <span>↗</span></button>
+                    {% else %}
+                    <div class="guest-profile-copy"><span class="avatar avatar-profile tone-lime">أ</span><strong>مساحتك تبدأ بحساب.</strong><p>سجّل الدخول لتبني دوائرك وتحفظ ما يهمك.</p><button type="button" class="profile-action" data-open-auth data-auth-mode="register">أنشئ حسابًا مجانيًا <span>↗</span></button></div>
+                    {% endif %}
                 </section>
 
                 <section class="topics-card">
@@ -235,6 +254,8 @@
                             <span class="topic-copy"><small>{{ topic.category }}</small><strong>{{ topic.name }}</strong><em>{{ topic.meta }}</em></span>
                             <span class="topic-arrow">↗</span>
                         </button>
+                        {% empty %}
+                        <p class="side-empty">ستظهر المواضيع مع أول المنشورات.</p>
                         {% endfor %}
                     </div>
                     <button class="see-topics" type="button" data-toast="سنكشف عن مواضيع أكثر لاحقًا">كل المواضيع <span>←</span></button>
@@ -258,7 +279,29 @@
         </section>
     </div>
 
+    <div class="auth-layer" id="authLayer" hidden>
+        <div class="auth-backdrop" data-close-auth></div>
+        <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+            <button class="auth-close" type="button" data-close-auth aria-label="إغلاق">×</button>
+            <div class="auth-symbol">✦</div>
+            <div class="auth-heading"><span class="section-label">أثر</span><h2 id="authTitle">مساحتك تبدأ من هنا.</h2><p>انضم إلى مساحة عربية للأفكار التي تستحق وقتًا أطول.</p></div>
+            <div class="auth-tabs" role="tablist">
+                <button class="auth-tab is-active" type="button" data-auth-tab="login" role="tab" aria-selected="true">تسجيل الدخول</button>
+                <button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">حساب جديد</button>
+            </div>
+            <form class="auth-form" id="authForm">
+                <label class="auth-field auth-display-field" hidden><span>الاسم الذي سيظهر</span><input id="authDisplayName" type="text" autocomplete="name" placeholder="مثال: مستخدم أثر"></label>
+                <label class="auth-field auth-handle-field" hidden><span>المعرّف</span><div class="auth-handle-input"><b>@</b><input id="authHandle" type="text" autocomplete="username" placeholder="your.name" dir="ltr"></div></label>
+                <label class="auth-field"><span>اسم المستخدم</span><input id="authUsername" type="text" autocomplete="username" placeholder="your.name" dir="ltr" required></label>
+                <label class="auth-field"><span>كلمة المرور</span><input id="authPassword" type="password" autocomplete="current-password" placeholder="٨ أحرف على الأقل" required></label>
+                <p class="auth-error" id="authError" role="alert" hidden></p>
+                <button class="auth-submit" id="authSubmit" type="submit">تسجيل الدخول <span>↗</span></button>
+            </form>
+            <p class="auth-footnote">بمتابعة الاستخدام، توافق على مبادئ أثر وخصوصية مساحتك.</p>
+        </section>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">✦</span><span id="toastMessage">تم</span></div>
-    <script src="{% static 'core/js/site.js' %}?v=2"></script>
+    <script src="{% static 'core/js/site.js' %}?v=5"></script>
 </body>
 </html>

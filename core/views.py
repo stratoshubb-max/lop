@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import timedelta
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.http import JsonResponse
@@ -14,155 +13,26 @@ from .models import Bookmark, Follow, Post, PostLike, PostRepost, Profile, Topic
 
 User = get_user_model()
 
-SEED_TOPICS = [
-    {"rank": 1, "category": "في الثقافة", "name": "المدن التي تشبهنا", "meta": "٢٬٤٨٠ منشور"},
-    {"rank": 2, "category": "تصميم", "name": "الجمال الوظيفي", "meta": "١٬٩٢٠ منشور"},
-    {"rank": 3, "category": "أفكار", "name": "وقت أقل، معنى أكثر", "meta": "٨٧٤ منشور"},
-]
-
-SEED_PROFILES = [
-    {"display_name": "ليان الشمري", "handle": "layan.s", "initial": "ل", "tone": "violet", "bio": "باحثة في جماليات المدن.", "verified": True},
-    {"display_name": "سامر حدّاد", "handle": "samer.haddad", "initial": "س", "tone": "copper", "bio": "أفكار صغيرة، كل صباح.", "verified": False},
-    {"display_name": "نورا يونس", "handle": "noura.y", "initial": "ن", "tone": "mint", "bio": "أصمم الأشياء التي تترك مساحة.", "verified": True},
-    {"display_name": "عمر فاضل", "handle": "omar.f", "initial": "ع", "tone": "blue", "bio": "أسئلة تجعل الغد أخف.", "verified": False},
-    {"display_name": "هدى العتيبي", "handle": "huda.a", "initial": "ه", "tone": "rose", "bio": "أكتب عن الفن والحياة.", "verified": False},
-    {"display_name": "بدر منصور", "handle": "badr.m", "initial": "ب", "tone": "gold", "bio": "أبني بهدوء.", "verified": False},
-    {"display_name": "مريم ناصر", "handle": "maryam.n", "initial": "م", "tone": "sky", "bio": "بين كتابين ومشوار.", "verified": False},
-]
-
-SEED_POSTS = [
-    {
-        "author_handle": "layan.s",
-        "body": "في المدن التي نحبّها، لا نتذكّر الشوارع بقدر ما نتذكّر الضوء الذي كان يلامسها. ربما لهذا تبدو بعض الأمكنة كأنها تعرف أسماءنا.",
-        "tags": ["المدينة", "ذاكرة"],
-        "published_label": "منذ ٨ دقائق",
-        "likes": 184,
-        "replies": 12,
-        "reposts": 21,
-        "topic": "المدن التي تشبهنا",
-        "following": True,
-    },
-    {
-        "author_handle": "samer.haddad",
-        "body": "فكرة صغيرة لهذا الصباح: ليس كل ما يستحق الانتشار يحتاج إلى ضجيج. أحيانًا يكفيه قارئ واحد، في الوقت المناسب.",
-        "tags": ["أفكار", "صباح"],
-        "published_label": "منذ ٢٣ دقيقة",
-        "likes": 96,
-        "replies": 8,
-        "reposts": 14,
-        "topic": "وقت أقل، معنى أكثر",
-        "following": False,
-    },
-    {
-        "author_handle": "noura.y",
-        "body": "أحبّ الأشياء المصمّمة بهدوء: كتابًا يترك مساحة للهوامش، غرفة لا تشرح نفسها، ومنتجًا يعرف متى يتوقّف.",
-        "tags": ["تصميم", "بساطة"],
-        "published_label": "منذ ٤٧ دقيقة",
-        "likes": 321,
-        "replies": 27,
-        "reposts": 38,
-        "topic": "الجمال الوظيفي",
-        "following": True,
-    },
-    {
-        "author_handle": "omar.f",
-        "body": "السؤال الأفضل ليس: كيف ننجز أكثر؟ بل: ما الشيء الوحيد الذي لو أنجزناه اليوم سيجعل الغد أخفّ؟",
-        "tags": [],
-        "published_label": "منذ ساعة",
-        "likes": 72,
-        "replies": 5,
-        "reposts": 6,
-        "topic": "وقت أقل، معنى أكثر",
-        "following": True,
-    },
-]
-
 
 def arabic_number(value):
     return str(value).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
 
 
-def ensure_demo_data():
-    """Create editable starter content once; all subsequent changes live in SQLite."""
-    profiles = {}
-    for item in SEED_PROFILES:
-        user, _ = User.objects.get_or_create(username=item["handle"], defaults={"is_active": True})
-        if not user.has_usable_password():
-            user.set_unusable_password()
-            user.save(update_fields=["password"])
-        profile, _ = Profile.objects.update_or_create(
-            user=user,
-            defaults={
-                "display_name": item["display_name"],
-                "handle": item["handle"],
-                "avatar_initial": item["initial"],
-                "avatar_tone": item["tone"],
-                "bio": item["bio"],
-                "verified": item["verified"],
-            },
-        )
-        profiles[item["handle"]] = profile
-
-    topics = {}
-    for item in SEED_TOPICS:
-        topic, _ = Topic.objects.update_or_create(
-            name=item["name"], defaults={"rank": item["rank"], "category": item["category"]}
-        )
-        topics[item["name"]] = topic
-
-    now = timezone.now()
-    for index, item in enumerate(SEED_POSTS):
-        author = profiles[item["author_handle"]]
-        post, created = Post.objects.get_or_create(
-            body=item["body"],
-            defaults={
-                "author": author.user,
-                "author_name": author.display_name,
-                "handle": author.handle,
-                "avatar_initial": author.avatar_initial,
-                "avatar_tone": author.avatar_tone,
-                "tags": item["tags"],
-                "topic": topics[item["topic"]],
-                "published_at": now - timedelta(minutes=(index * 19 + 8)),
-                "published_label": item["published_label"],
-                "verified": author.verified,
-                "likes": item["likes"],
-                "replies": item["replies"],
-                "reposts": item["reposts"],
-            },
-        )
-        if not created and post.author_id is None:
-            post.author = author.user
-            post.topic = topics[item["topic"]]
-            post.save(update_fields=["author", "topic"])
+def current_user(request):
+    return request.user if request.user.is_authenticated else None
 
 
-def get_actor(request):
-    """Return a real database user even before the visitor creates an account."""
-    if request.user.is_authenticated:
-        return request.user
-
-    guest, _ = User.objects.get_or_create(username="athar_guest", defaults={"is_active": True})
-    if not guest.has_usable_password():
-        guest.set_unusable_password()
-        guest.save(update_fields=["password"])
-    Profile.objects.get_or_create(
-        user=guest,
-        defaults={
-            "display_name": "أنت",
-            "handle": "you",
-            "avatar_initial": "أ",
-            "avatar_tone": "lime",
-            "bio": "أجمع الأشياء التي تجعل الأيام أوسع.",
-        },
+def auth_required_response():
+    return JsonResponse(
+        {"error": "أنشئ حسابًا أو سجّل الدخول أولًا للمتابعة.", "requires_auth": True},
+        status=401,
     )
-    return guest
 
 
 def profile_for(user):
     return Profile.objects.get_or_create(
         user=user,
-        defaults={"display_name": "أنت", "handle": "you", "avatar_initial": "أ", "avatar_tone": "lime"},
+        defaults={"display_name": user.username, "handle": user.username, "avatar_initial": user.username[:1] or "أ", "avatar_tone": "lime"},
     )[0]
 
 
@@ -208,8 +78,8 @@ def serialize_post(post, actor=None):
     }
 
 
-def serialize_profile(profile, actor):
-    following = Follow.objects.filter(follower=actor, following=profile.user).exists()
+def serialize_profile(profile, actor=None):
+    following = bool(actor and Follow.objects.filter(follower=actor, following=profile.user).exists())
     return {
         "name": profile.display_name,
         "handle": profile.handle,
@@ -230,17 +100,16 @@ def topic_payload(topic):
 
 
 def home(request):
-    ensure_demo_data()
-    actor = get_actor(request)
-    actor_profile = profile_for(actor)
+    actor = current_user(request)
     posts = [serialize_post(post, actor) for post in Post.objects.select_related("author", "topic").all()[:20]]
-    profile_qs = Profile.objects.exclude(user=actor).order_by("display_name")[:3]
-    suggestions = [serialize_profile(profile, actor) for profile in profile_qs]
+    profiles = Profile.objects.exclude(user=actor) if actor else Profile.objects.all()
+    suggestions = [serialize_profile(profile, actor) for profile in profiles.order_by("-created_at")[:3]]
     topics = [topic_payload(topic) for topic in Topic.objects.all()[:5]]
+    viewer = profile_for(actor) if actor else None
     viewer_stats = {
-        "posts": Post.objects.filter(author=actor, parent__isnull=True).count(),
-        "followers": Follow.objects.filter(following=actor).count(),
-        "following": Follow.objects.filter(follower=actor).count(),
+        "posts": Post.objects.filter(author=actor, parent__isnull=True).count() if actor else 0,
+        "followers": Follow.objects.filter(following=actor).count() if actor else 0,
+        "following": Follow.objects.filter(follower=actor).count() if actor else 0,
     }
     return render(
         request,
@@ -249,8 +118,9 @@ def home(request):
             "posts": posts,
             "topics": topics,
             "suggestions": suggestions,
-            "viewer": actor_profile,
+            "viewer": viewer,
             "viewer_stats": viewer_stats,
+            "authenticated": bool(actor),
             "csrf_token_value": get_token(request),
             "active_view": "home",
         },
@@ -260,8 +130,7 @@ def home(request):
 @csrf_protect
 @require_http_methods(["GET", "POST"])
 def posts_api(request):
-    ensure_demo_data()
-    actor = get_actor(request)
+    actor = current_user(request)
 
     if request.method == "GET":
         query = request.GET.get("q", "").strip()
@@ -270,8 +139,10 @@ def posts_api(request):
             needle = query.casefold()
             candidates = posts[:100]
             posts = [
-                post for post in candidates
-                if needle in " ".join(
+                post
+                for post in candidates
+                if needle
+                in " ".join(
                     [
                         post.body,
                         post.author_name,
@@ -285,6 +156,9 @@ def posts_api(request):
         else:
             posts = posts[:30]
         return JsonResponse({"posts": [serialize_post(post, actor) for post in posts[:30]]})
+
+    if actor is None:
+        return auth_required_response()
 
     try:
         payload = json.loads(request.body or "{}")
@@ -320,8 +194,9 @@ def posts_api(request):
 @csrf_protect
 @require_POST
 def post_action_api(request, post_id, action):
-    ensure_demo_data()
-    actor = get_actor(request)
+    actor = current_user(request)
+    if actor is None:
+        return auth_required_response()
     post = get_object_or_404(Post, pk=post_id)
 
     if action == "like":
@@ -367,8 +242,9 @@ def post_action_api(request, post_id, action):
 @csrf_protect
 @require_POST
 def follow_api(request, handle):
-    ensure_demo_data()
-    actor = get_actor(request)
+    actor = current_user(request)
+    if actor is None:
+        return auth_required_response()
     target = get_object_or_404(Profile, handle=handle).user
     if target == actor:
         return JsonResponse({"error": "لا يمكنك متابعة نفسك."}, status=400)
@@ -382,9 +258,13 @@ def follow_api(request, handle):
 @require_http_methods(["GET", "POST"])
 def auth_api(request, action):
     if action == "me":
-        actor = get_actor(request)
-        profile = profile_for(actor)
-        return JsonResponse({"authenticated": request.user.is_authenticated, "profile": serialize_profile(profile, actor) | {"bio": profile.bio}})
+        actor = current_user(request)
+        return JsonResponse(
+            {
+                "authenticated": bool(actor),
+                "profile": serialize_profile(profile_for(actor), actor) if actor else None,
+            }
+        )
 
     if request.method != "POST":
         return JsonResponse({"error": "طريقة الطلب غير متاحة."}, status=405)
@@ -417,7 +297,7 @@ def auth_api(request, action):
         if Profile.objects.filter(handle=handle).exists() or User.objects.filter(username=handle).exists():
             return JsonResponse({"error": "هذا المعرّف مستخدم بالفعل."}, status=409)
         user = User.objects.create_user(username=handle, password=password)
-        profile = Profile.objects.create(user=user, display_name=display_name, handle=handle, avatar_initial=display_name[:1])
+        profile = Profile.objects.create(user=user, display_name=display_name, handle=handle, avatar_initial=display_name[:1] or "أ")
         login(request, user)
         return JsonResponse({"ok": True, "profile": serialize_profile(profile, user)}, status=201)
 

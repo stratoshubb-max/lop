@@ -9,6 +9,12 @@
     const searchInput = document.getElementById('searchInput');
     const searchHint = document.getElementById('searchHint');
     const filteredEmpty = document.getElementById('filteredEmpty');
+    const authLayer = document.getElementById('authLayer');
+    const authForm = document.getElementById('authForm');
+    const authError = document.getElementById('authError');
+    const authSubmit = document.getElementById('authSubmit');
+    const authStatus = document.querySelector('meta[name="auth-status"]')?.content === 'true';
+    let authMode = 'login';
     const formatter = new Intl.NumberFormat('ar-EG', { useGrouping: false });
     let toastTimer;
     let currentTab = 'all';
@@ -57,6 +63,56 @@
         toast.classList.add('is-visible');
         window.clearTimeout(toastTimer);
         toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2800);
+    }
+
+    function setAuthMode(mode = 'login') {
+        authMode = mode;
+        const register = mode === 'register';
+        const displayField = document.querySelector('.auth-display-field');
+        const handleField = document.querySelector('.auth-handle-field');
+        const usernameField = document.getElementById('authUsername')?.closest('.auth-field');
+        const displayName = document.getElementById('authDisplayName');
+        const authHandle = document.getElementById('authHandle');
+        const title = document.getElementById('authTitle');
+        if (displayField) displayField.hidden = !register;
+        if (handleField) handleField.hidden = !register;
+        if (usernameField) usernameField.hidden = register;
+        if (displayName) displayName.required = register;
+        if (authHandle) authHandle.required = register;
+        const username = document.getElementById('authUsername');
+        if (username) username.required = !register;
+        if (title) title.textContent = register ? 'مساحتك تبدأ من هنا.' : 'مرحبًا بعودتك.';
+        if (authSubmit) authSubmit.innerHTML = register ? 'إنشاء الحساب <span>↗</span>' : 'تسجيل الدخول <span>↗</span>';
+        document.querySelectorAll('[data-auth-tab]').forEach(tab => {
+            const active = tab.dataset.authTab === mode;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        if (authError) authError.hidden = true;
+    }
+
+    function openAuth(mode = 'login') {
+        if (!authLayer) return;
+        setAuthMode(mode);
+        authLayer.hidden = false;
+        document.body.style.overflow = 'hidden';
+        window.setTimeout(() => {
+            const target = mode === 'register' ? document.getElementById('authDisplayName') : document.getElementById('authUsername');
+            target?.focus();
+        }, 40);
+    }
+
+    function closeAuth() {
+        if (!authLayer) return;
+        authLayer.hidden = true;
+        document.body.style.overflow = '';
+    }
+
+    function requireAuthentication(mode = 'register') {
+        if (authStatus) return false;
+        openAuth(mode);
+        showToast('سجّل الدخول لتتفاعل مع المنشورات');
+        return true;
     }
 
     function replayClass(element, className, duration = 700) {
@@ -319,7 +375,26 @@
         const openComposer = event.target.closest('[data-open-composer]');
         if (openComposer) {
             event.preventDefault();
-            scrollToComposer();
+            if (!requireAuthentication('register')) scrollToComposer();
+            return;
+        }
+
+        const openAuth = event.target.closest('[data-open-auth]');
+        if (openAuth) {
+            event.preventDefault();
+            openAuth(openAuth.dataset.authMode || 'login');
+            return;
+        }
+
+        const closeAuthButton = event.target.closest('[data-close-auth]');
+        if (closeAuthButton) {
+            closeAuth();
+            return;
+        }
+
+        const authTab = event.target.closest('[data-auth-tab]');
+        if (authTab) {
+            setAuthMode(authTab.dataset.authTab || 'login');
             return;
         }
 
@@ -332,6 +407,7 @@
 
         const follow = event.target.closest('[data-follow-button]');
         if (follow) {
+            if (requireAuthentication('login')) return;
             const wasFollowing = follow.classList.contains('is-following');
             const handle = follow.dataset.handle;
             follow.classList.toggle('is-following', !wasFollowing);
@@ -390,6 +466,7 @@
         if (!card) return;
 
         const actionType = action.dataset.action;
+        if (['like', 'repost', 'bookmark', 'reply', 'share'].includes(actionType) && requireAuthentication('login')) return;
         if (actionType === 'like' || actionType === 'repost' || actionType === 'bookmark') {
             const wasActive = action.classList.contains('is-active');
             const countKey = actionType === 'like' ? 'likes' : actionType === 'repost' ? 'reposts' : null;
@@ -438,18 +515,42 @@
     searchInput?.addEventListener('input', filterFromSearch);
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && searchLayer && !searchLayer.hidden) closeSearch();
+        if (event.key === 'Escape' && authLayer && !authLayer.hidden) closeAuth();
         if (event.key === '/' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
             event.preventDefault();
             openSearch();
         }
     });
 
-    document.getElementById('newsletterForm')?.addEventListener('submit', event => {
+    authForm?.addEventListener('submit', async event => {
         event.preventDefault();
-        const input = event.currentTarget.querySelector('input');
-        if (input?.value) {
-            event.currentTarget.reset();
-            showToast('أهلًا بك — ستصلك أول رسالة قريبًا');
+        if (!authSubmit) return;
+        const displayName = document.getElementById('authDisplayName')?.value.trim() || '';
+        const handle = document.getElementById('authHandle')?.value.trim().toLowerCase() || '';
+        const username = document.getElementById('authUsername')?.value.trim() || '';
+        const password = document.getElementById('authPassword')?.value || '';
+        const payload = authMode === 'register'
+            ? { display_name: displayName, handle, password }
+            : { username, password };
+        authSubmit.disabled = true;
+        if (authError) authError.hidden = true;
+        try {
+            const response = await fetch(`/api/auth/${authMode}/`, {
+                method: 'POST',
+                headers: apiHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'تعذّر إكمال العملية');
+            window.location.reload();
+        } catch (error) {
+            if (authError) {
+                authError.textContent = error.message;
+                authError.hidden = false;
+            }
+        } finally {
+            authSubmit.disabled = false;
         }
     });
+
 })();
