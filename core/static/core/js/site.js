@@ -41,9 +41,31 @@
     function showToast(message) {
         if (!toast || !toastMessage) return;
         toastMessage.textContent = message;
+        toast.classList.remove('is-visible');
+        // Re-run the entrance motion when a second notification arrives quickly.
+        void toast.offsetWidth;
         toast.classList.add('is-visible');
         window.clearTimeout(toastTimer);
         toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2800);
+    }
+
+    function replayClass(element, className, duration = 700) {
+        if (!element) return;
+        element.classList.remove(className);
+        void element.offsetWidth;
+        element.classList.add(className);
+        window.setTimeout(() => element.classList.remove(className), duration);
+    }
+
+    function createRipple(element, event) {
+        if (!element || element.matches(':disabled')) return;
+        const rect = element.getBoundingClientRect();
+        const ripple = document.createElement('span');
+        ripple.className = 'interaction-ripple';
+        ripple.style.left = `${event.clientX - rect.left}px`;
+        ripple.style.top = `${event.clientY - rect.top}px`;
+        element.appendChild(ripple);
+        window.setTimeout(() => ripple.remove(), 620);
     }
 
     function escapeHTML(value) {
@@ -195,6 +217,11 @@
     publishButton?.addEventListener('click', publishPost);
     updateComposerState();
 
+    document.addEventListener('pointerdown', event => {
+        const target = event.target.closest('.post-action, .side-nav-item, .side-nav-cta, .mobile-nav-item, .mobile-nav-compose, .header-cta, .publish-button, .landing-button, .follow-button, .feed-view-button, .tool-button');
+        if (target) createRipple(target, event);
+    });
+
     // One delegated listener keeps dynamically published posts interactive too.
     document.addEventListener('click', event => {
         const openComposer = event.target.closest('[data-open-composer]');
@@ -216,6 +243,7 @@
             const following = follow.classList.toggle('is-following');
             follow.textContent = following ? 'تتابع' : 'تابع';
             follow.setAttribute('aria-pressed', following ? 'true' : 'false');
+            replayClass(follow, 'is-popping', 520);
             showToast(following ? 'أضفناه إلى دوائرك' : 'أزلناه من دوائرك');
             return;
         }
@@ -264,11 +292,13 @@
             const active = action.classList.toggle('is-active');
             const count = action.querySelector(`[data-count="${actionType === 'like' ? 'likes' : 'reposts'}"]`);
             if (count) count.textContent = number(numericValue(count.textContent) + (active ? 1 : -1));
+            replayClass(action, actionType === 'like' ? 'is-popping' : 'is-spinning');
             if (active) showToast(actionType === 'like' ? 'وصل إعجابك' : 'أعدت نشر هذا الأثر');
             return;
         }
         if (actionType === 'bookmark') {
             const active = action.classList.toggle('is-active');
+            replayClass(action, 'is-dropping', 620);
             showToast(active ? 'حُفظ في مجموعتك' : 'أزيل من مجموعتك');
             return;
         }
@@ -278,6 +308,7 @@
             return;
         }
         if (actionType === 'share') {
+            replayClass(action, 'is-spinning', 620);
             const text = card.querySelector('.post-body p')?.textContent || '';
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(text).then(() => showToast('نُسخ الأثر إلى الحافظة')).catch(() => showToast('الأثر جاهز للمشاركة'));
