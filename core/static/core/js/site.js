@@ -170,7 +170,7 @@
                     </div>
                     <div class="post-meta"><span>${escapeHTML(post.published_label || 'الآن')}</span><i></i><span>عام</span></div>
                 </div>
-                <button class="more-button" type="button" data-toast="خيارات المنشور" aria-label="المزيد"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg></button>
+                <button class="more-button" type="button" data-toast="خيارات المنشور" data-requires-auth aria-label="المزيد"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg></button>
             </div>
             <div class="post-body">
                 <p>${escapeHTML(post.body || '')}</p>
@@ -406,6 +406,9 @@
             setAuthMode(authTab.dataset.authTab || 'login');
             return;
         }
+
+        const protectedTarget = event.target.closest('[data-requires-auth]');
+        if (protectedTarget && requireAuthentication('login')) return;
 
         const toastTarget = event.target.closest('[data-toast]');
         if (toastTarget) {
