@@ -1,0 +1,248 @@
+{% load static %}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b0c0d">
+    <meta name="description" content="أثر — شبكة عربية للأفكار التي تستحق أن تبقى.">
+    <title>أثر — مساحة لما يستحق أن يبقى</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'core/css/site.css' %}">
+</head>
+<body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="{% url 'core:home' %}" aria-label="العودة إلى أثر">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none">
+                        <path d="M7.5 21.6c1.8-5.9 5.9-10 11.9-11.9 1.1-.3 2.2-.6 3.3-.7-1.3 1.1-2.2 2.5-2.7 4.1-1.2 3.8-3.5 6.6-7 8.4-1.7.8-3.5 1-5.5.1Z" fill="currentColor"/>
+                        <path d="M8 25.2c4.9-1.1 9.4-3.6 13.3-7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span class="brand-copy">
+                    <strong>أثر</strong>
+                    <small>مساحتك الهادئة</small>
+                </span>
+            </a>
+
+            <nav class="primary-nav" aria-label="التنقّل الرئيسي">
+                <a class="nav-item is-active" href="#feed" data-nav="home">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+                    <span>الرئيسية</span>
+                </a>
+                <a class="nav-item" href="#discover" data-nav="discover">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                    <span>اكتشف</span>
+                </a>
+                <a class="nav-item" href="#circles" data-nav="circles">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 19c.4-3.1 2.2-5 5.5-5s5.1 1.9 5.5 5M16 5.5a3 3 0 0 1 0 5.8M17 14c2.2.4 3.5 2 3.7 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <span>دوائرك</span>
+                </a>
+            </nav>
+
+            <div class="topbar-actions">
+                <button class="icon-button search-trigger" id="searchTrigger" type="button" aria-label="بحث">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                </button>
+                <button class="user-chip" type="button" data-open-composer aria-label="فتح مساحة الكتابة">
+                    <span class="avatar avatar-tiny tone-lime">أ</span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 9 5 5 5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-shell" id="feed">
+        <aside class="left-rail" aria-label="اقتراحات ومعلومات">
+            <div class="rail-sticky">
+                <section class="rail-block suggestions-block" id="circles">
+                    <div class="rail-heading">
+                        <span class="section-label">قد يهمك</span>
+                        <button class="text-button" type="button" data-toast="سنوسّع اقتراحاتك قريبًا">عرض الكل</button>
+                    </div>
+                    <div class="suggestion-list">
+                        {% for person in suggestions %}
+                        <div class="suggestion-row">
+                            <span class="avatar avatar-medium tone-{{ person.tone }}">{{ person.initial }}</span>
+                            <div class="suggestion-info">
+                                <strong>{{ person.name }}</strong>
+                                <span>@{{ person.handle }}</span>
+                            </div>
+                            <button class="follow-button" type="button" data-follow-button aria-pressed="false">تابع</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="letter-card">
+                    <span class="letter-glow" aria-hidden="true"></span>
+                    <div class="card-eyebrow"><span class="mini-dot"></span>رسالة من أثر</div>
+                    <h2>أفكار تستحق<br><em>وقتًا أطول.</em></h2>
+                    <p>نشرة صغيرة، مرة كل أسبوع. مختارات من الأصوات التي تضيف شيئًا.</p>
+                    <form class="newsletter-form" id="newsletterForm">
+                        <label class="sr-only" for="newsletterEmail">بريدك الإلكتروني</label>
+                        <input id="newsletterEmail" type="email" placeholder="بريدك الإلكتروني" required>
+                        <button type="submit" aria-label="الاشتراك في النشرة">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                    </form>
+                </section>
+
+                <footer class="rail-footer">
+                    <span>© ٢٠٢٦ أثر</span>
+                    <a href="#about" data-toast="أثر مساحة عربية مستقلة">عن أثر</a>
+                    <a href="#rules" data-toast="نكتب بصدق، ونختلف بلطف">المبادئ</a>
+                </footer>
+            </div>
+        </aside>
+
+        <section class="feed-column" aria-label="خلاصة المنشورات">
+            <section class="hero-panel">
+                <div class="hero-topline">
+                    <div class="eyebrow"><span class="signal-dot"></span>الجمعة، ١٨ سبتمبر ٢٠٢٦</div>
+                    <div class="live-pill"><span></span>مباشر الآن</div>
+                </div>
+                <h1>مساحة لما<br><span>يستحق أن يبقى.</span></h1>
+                <p class="hero-description">أثر هو المكان الذي تتحوّل فيه الملاحظات العابرة إلى حوار، وتجد الأفكار الجيدة طريقها بهدوء.</p>
+                <div class="hero-bottomline">
+                    <div class="member-note"><span class="member-faces"><i class="tone-violet">ل</i><i class="tone-copper">س</i><i class="tone-mint">ن</i></span><span>٢٤٬٨٠٠ صوت في المساحة</span></div>
+                    <span class="hero-arrow" aria-hidden="true">↗</span>
+                </div>
+            </section>
+
+            <section class="feed-controls" aria-label="خيارات الخلاصة">
+                <div class="feed-tabs" role="tablist">
+                    <button class="feed-tab is-active" type="button" data-feed-tab="all" role="tab" aria-selected="true">لك</button>
+                    <button class="feed-tab" type="button" data-feed-tab="following" role="tab" aria-selected="false">أتابعهم</button>
+                </div>
+                <button class="sort-button" type="button" data-toast="الخلاصة مرتبة حسب الأحدث">
+                    الأحدث
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 9 5 5 5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </section>
+
+            <section class="compose-card" id="composeCard">
+                <div class="compose-heading">
+                    <span class="section-label">بصوتك</span>
+                    <span class="compose-privacy"><span class="privacy-dot"></span>عام</span>
+                </div>
+                <div class="compose-row">
+                    <span class="avatar avatar-large tone-lime">أ</span>
+                    <div class="compose-content">
+                        <label class="sr-only" for="postInput">ماذا يدور في بالك؟</label>
+                        <textarea id="postInput" class="compose-input" maxlength="500" rows="2" placeholder="ما الأثر الذي تريد أن تتركه اليوم؟"></textarea>
+                        <div class="compose-footer">
+                            <div class="compose-tools" aria-label="أدوات المنشور">
+                                <button type="button" class="tool-button" data-toast="إضافة صورة ستكون متاحة قريبًا" aria-label="إضافة صورة"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="m5 17 4.5-4 3.5 3 2.3-2.1L20 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                <button type="button" class="tool-button" data-toast="أضف شعورك إلى المنشور" aria-label="إضافة شعور"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 14.5c.9 1.1 2 1.6 3.5 1.6s2.6-.5 3.5-1.6M9 9.5h.01M15 9.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+                                <button type="button" class="tool-button" data-toast="أضف رابطًا إلى فكرتك" aria-label="إضافة رابط"><svg viewBox="0 0 24 24" fill="none"><path d="M10 13.8a3.7 3.7 0 0 0 5.4.3l2-2a3.7 3.7 0 0 0-5.2-5.2l-1.1 1.1M14 10.2a3.7 3.7 0 0 0-5.4-.3l-2 2a3.7 3.7 0 0 0 5.2 5.2l1.1-1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                            </div>
+                            <div class="publish-actions">
+                                <span class="char-count" id="charCount">٠/٥٠٠</span>
+                                <button class="publish-button" id="publishButton" type="button" disabled>انشر الأثر</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="feed-list" id="feedList">
+                {% for post in posts %}
+                <article class="post-card" data-post-id="{{ post.id }}" data-following="{{ post.following|yesno:'true,false' }}" data-searchable="{{ post.author_name }} {{ post.handle }} {{ post.body }}">
+                    <div class="post-header">
+                        <span class="avatar avatar-large tone-{{ post.avatar_tone }}">{{ post.avatar_initial }}</span>
+                        <div class="post-author">
+                            <div class="author-line">
+                                <strong>{{ post.author_name }}</strong>
+                                {% if post.verified %}<span class="verified" title="حساب موثّق"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 2 1.3 2.3-.1.9 2.1 1.9 1.2-.5 2.2.7 2.2-1.6 1.6-.2 2.3-2.2.5L12 17l-2 .9L8.1 17l-2.2-.5-.2-2.3-1.6-1.6.7-2.2-.5-2.2 1.9-1.2.9-2.1 2.3.1L10 2Z" fill="currentColor"/><path d="m7.1 10.1 1.8 1.8 4-4" stroke="#101114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}
+                                <span class="post-handle">@{{ post.handle }}</span>
+                            </div>
+                            <div class="post-meta"><span>{{ post.published_label }}</span><i></i><span>عام</span></div>
+                        </div>
+                        <button class="more-button" type="button" data-toast="خيارات المنشور" aria-label="المزيد"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg></button>
+                    </div>
+                    <div class="post-body">
+                        <p>{{ post.body }}</p>
+                        {% if post.tags %}
+                        <div class="post-tags">
+                            {% for tag in post.tags %}<span>#{{ tag }}</span>{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="post-actions">
+                        <button class="post-action action-reply" type="button" data-action="reply" aria-label="الرد على المنشور"><svg viewBox="0 0 24 24" fill="none"><path d="M20 11.3a7 7 0 0 1-7.5 6.7 8.4 8.4 0 0 1-3.3-.7L5 19l.9-3.1A6.5 6.5 0 0 1 4 11.3 7 7 0 0 1 11.5 5 7 7 0 0 1 20 11.3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-count="replies">{{ post.replies }}</span></button>
+                        <button class="post-action action-repost" type="button" data-action="repost" aria-label="إعادة نشر"><svg viewBox="0 0 24 24" fill="none"><path d="m7 7-3 3 3 3M4 10h10a4 4 0 0 1 4 4M17 17l3-3-3-3m3 3H10a4 4 0 0 1-4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-count="reposts">{{ post.reposts }}</span></button>
+                        <button class="post-action action-like" type="button" data-action="like" aria-label="الإعجاب بالمنشور"><svg viewBox="0 0 24 24" fill="none"><path d="M20.8 8.6c0 5.3-8.8 10-8.8 10s-8.8-4.7-8.8-10a4.5 4.5 0 0 1 8.8-1.5 4.5 4.5 0 0 1 8.8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-count="likes">{{ post.likes }}</span></button>
+                        <button class="post-action action-bookmark" type="button" data-action="bookmark" aria-label="حفظ المنشور"><svg viewBox="0 0 24 24" fill="none"><path d="M6 5.8A1.8 1.8 0 0 1 7.8 4h8.4A1.8 1.8 0 0 1 18 5.8V20l-6-3.6L6 20V5.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+                        <button class="post-action action-share" type="button" data-action="share" aria-label="مشاركة المنشور"><svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="18.5" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="m8.3 10.8 7.4-4M8.3 13.2l7.4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                    </div>
+                </article>
+                {% empty %}
+                <div class="empty-state">لا توجد منشورات بعد. كن أول من يترك أثرًا.</div>
+                {% endfor %}
+            </div>
+            <div class="filtered-empty" id="filteredEmpty" hidden>لا يوجد شيء هنا بعد. جرّب تبويب «لك».</div>
+            <button class="load-more" type="button" data-toast="أنت في قلب الخلاصة — سنضيف المزيد قريبًا">عرض منشورات أقدم <span>↓</span></button>
+        </section>
+
+        <aside class="right-rail" aria-label="مساحتك والمواضيع الرائجة" id="discover">
+            <div class="rail-sticky">
+                <section class="profile-card">
+                    <div class="profile-card-top">
+                        <span class="section-label">مساحتك</span>
+                        <button class="mini-menu" type="button" data-toast="إعدادات الحساب قريبًا" aria-label="إعدادات الحساب"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
+                    </div>
+                    <div class="profile-main">
+                        <span class="avatar avatar-profile tone-lime">أ</span>
+                        <div><strong>أنت</strong><span>@you</span></div>
+                    </div>
+                    <p class="profile-bio">أجمع الأشياء التي تجعل الأيام أوسع.</p>
+                    <div class="profile-stats"><span><b>١٢</b> أثر</span><span><b>٤٨</b> يتابعونك</span><span><b>١٠٢</b> تتابع</span></div>
+                    <button class="profile-action" type="button" data-open-composer>اكتب أثرًا جديدًا <span>↗</span></button>
+                </section>
+
+                <section class="topics-card">
+                    <div class="rail-heading">
+                        <span class="section-label">ما يدور الآن</span>
+                        <span class="topics-pulse"><i></i> حيّ</span>
+                    </div>
+                    <div class="topic-list">
+                        {% for topic in topics %}
+                        <button class="topic-row" type="button" data-topic="{{ topic.name }}">
+                            <span class="topic-rank">{{ topic.rank }}</span>
+                            <span class="topic-copy"><small>{{ topic.category }}</small><strong>{{ topic.name }}</strong><em>{{ topic.meta }}</em></span>
+                            <span class="topic-arrow">↗</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <button class="see-topics" type="button" data-toast="سنكشف عن مواضيع أكثر لاحقًا">كل المواضيع <span>←</span></button>
+                </section>
+
+                <section class="quiet-note">
+                    <span class="quiet-icon">✦</span>
+                    <div><strong>خذ وقتك.</strong><span>لا شيء هنا مستعجل.</span></div>
+                </section>
+            </div>
+        </aside>
+    </main>
+
+    <div class="search-layer" id="searchLayer" hidden>
+        <div class="search-backdrop" data-close-search></div>
+        <section class="search-panel" role="dialog" aria-modal="true" aria-labelledby="searchTitle">
+            <div class="search-panel-heading"><span class="section-label" id="searchTitle">ابحث في أثر</span><button type="button" class="close-button" data-close-search aria-label="إغلاق البحث">×</button></div>
+            <div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input id="searchInput" type="search" placeholder="جرّب: تصميم، مدينة، أو اسمًا" autocomplete="off"></div>
+            <p class="search-hint" id="searchHint">اكتب كلمة للبحث في الأصوات والمنشورات والمواضيع.</p>
+        </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">✦</span><span id="toastMessage">تم</span></div>
+    <script src="{% static 'core/js/site.js' %}"></script>
+</body>
+</html>

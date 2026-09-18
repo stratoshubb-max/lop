@@ -1,0 +1,14 @@
+# Django / Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+.venv/
+.env
+
+# Collected static assets
+staticfiles/
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
