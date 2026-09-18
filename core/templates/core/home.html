@@ -33,33 +33,80 @@
             </a>
 
             <nav class="primary-nav" aria-label="التنقّل الرئيسي">
-                <a class="nav-item is-active" href="#feed" data-nav="home">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-                    <span>الرئيسية</span>
-                </a>
-                <a class="nav-item" href="#discover" data-nav="discover">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-                    <span>اكتشف</span>
-                </a>
-                <a class="nav-item" href="#circles" data-nav="circles">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 19c.4-3.1 2.2-5 5.5-5s5.1 1.9 5.5 5M16 5.5a3 3 0 0 1 0 5.8M17 14c2.2.4 3.5 2 3.7 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                    <span>دوائرك</span>
-                </a>
+                <a class="nav-item is-active" href="#feed" data-nav="home"><span>الخلاصة</span></a>
+                <a class="nav-item" href="#discover" data-nav="discover"><span>استكشف</span></a>
+                <a class="nav-item" href="#circles" data-nav="circles"><span>المجتمعات</span></a>
+                <a class="nav-item" href="#principles" data-toast="أثر مساحة تكتب فيها بصدق">المبادئ</a>
             </nav>
 
             <div class="topbar-actions">
+                <button class="header-login" type="button" data-toast="تسجيل الدخول سيكون متاحًا قريبًا">تسجيل الدخول</button>
+                <button class="header-outline" type="button" data-toast="يسعدنا أن نسمع منك">تواصل معنا <span>→</span></button>
+                <button class="header-cta" type="button" data-open-composer>اكتب أثرًا <span>↓</span></button>
                 <button class="icon-button search-trigger" id="searchTrigger" type="button" aria-label="بحث">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-                </button>
-                <button class="user-chip" type="button" data-open-composer aria-label="فتح مساحة الكتابة">
-                    <span class="avatar avatar-tiny tone-lime">أ</span>
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 9 5 5 5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="app-shell" id="feed">
+    <main class="site-main">
+        <section class="landing-hero" aria-labelledby="landingTitle">
+            <div class="landing-copy">
+                <div class="landing-kicker"><span></span>شبكة عربية للأفكار</div>
+                <h1 id="landingTitle">نبني مساحة<br><em>للأفكار الطموحة.</em></h1>
+                <p>أثر هو المكان الذي تتحوّل فيه الملاحظات العابرة إلى حوار، وتجد الأفكار الجيدة طريقها بهدوء.</p>
+                <div class="landing-actions">
+                    <button class="landing-button landing-button-dark" type="button" data-open-composer>اكتب أثرًا جديدًا <span>↓</span></button>
+                    <a class="landing-button landing-button-soft" href="#feed">اكتشف الخلاصة <span>←</span></a>
+                </div>
+            </div>
+
+            <div class="showcase-stage" aria-label="لمحة عن مساحة أثر">
+                <div class="stage-sun stage-sun-one" aria-hidden="true"></div>
+                <div class="stage-sun stage-sun-two" aria-hidden="true"></div>
+                <div class="stage-label stage-label-top">أثر / ٠١</div>
+                <div class="stage-label stage-label-bottom">مساحة لما يستحق أن يبقى</div>
+                <div class="stage-word stage-word-one" aria-hidden="true">أفكار</div>
+                <div class="stage-word stage-word-two" aria-hidden="true">تتحرّك</div>
+                <div class="product-window">
+                    <div class="window-bar">
+                        <div class="window-dots"><i></i><i></i><i></i></div>
+                        <span>athar.space</span>
+                        <span class="window-bar-mark">✦</span>
+                    </div>
+                    <div class="window-body">
+                        <aside class="window-side">
+                            <div class="window-logo"><b>أ</b><span>أثر</span></div>
+                            <div class="window-side-link is-selected"><i></i>الخلاصة</div>
+                            <div class="window-side-link"><i></i>استكشف</div>
+                            <div class="window-side-link"><i></i>دوائرك</div>
+                            <div class="window-side-line"></div>
+                            <small>مساحتك</small>
+                            <div class="window-person"><b>أ</b><span>أنت</span></div>
+                        </aside>
+                        <div class="window-feed">
+                            <div class="window-feed-head"><div><small>الجمعة، ١٨ سبتمبر</small><strong>الخلاصة</strong></div><span>● مباشر</span></div>
+                            <div class="window-compose"><b>أ</b><div>ما الأثر الذي تريد أن تتركه اليوم؟<small>صوتك مهم هنا</small></div><button>انشر</button></div>
+                            <div class="window-post">
+                                <div class="window-post-head"><b class="window-avatar purple">ل</b><span><strong>ليان الشمري</strong><small>@layan.s · منذ ٨ دقائق</small></span><i>•••</i></div>
+                                <p>في المدن التي نحبّها، لا نتذكّر الشوارع بقدر ما نتذكّر الضوء الذي كان يلامسها.</p>
+                                <div class="window-post-actions"><span>♡ ١٨٤</span><span>↻ ٢١</span><span>◌ ١٢</span><span>⌑</span></div>
+                            </div>
+                            <div class="window-post window-post-second">
+                                <div class="window-post-head"><b class="window-avatar green">ن</b><span><strong>نورا يونس</strong><small>@noura.y · منذ ٤٧ دقيقة</small></span><i>•••</i></div>
+                                <p>أحب الأشياء المصمّمة بهدوء: كتابًا يترك مساحة للهوامش.</p>
+                            </div>
+                        </div>
+                        <aside class="window-topic-side"><small>ما يدور الآن</small><strong>الجمال الوظيفي</strong><span>١٬٩٢٠ منشور</span><div></div><strong>وقت أقل، معنى أكثر</strong><span>٨٧٤ منشور</span></aside>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"><span>خلاصة أثر</span><i></i><span>اترك شيئًا وراءك</span></div>
+
+        <section class="app-shell" id="feed">
         <aside class="left-rail" aria-label="اقتراحات ومعلومات">
             <div class="rail-sticky">
                 <section class="rail-block suggestions-block" id="circles">
@@ -231,6 +278,7 @@
                 </section>
             </div>
         </aside>
+        </section>
     </main>
 
     <div class="search-layer" id="searchLayer" hidden>
