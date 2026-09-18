@@ -6,8 +6,8 @@ from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .models import Bookmark, Follow, Post, PostLike, PostRepost, Profile, Topic
 
@@ -97,6 +97,12 @@ def topic_payload(topic):
         "name": topic.name,
         "meta": f"{topic.posts.count()} منشور",
     }
+
+
+@ensure_csrf_cookie
+@require_GET
+def csrf_api(request):
+    return JsonResponse({"ok": True})
 
 
 def home(request):

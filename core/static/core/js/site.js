@@ -23,12 +23,46 @@
     let isPublishing = false;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+    function readCookie(name) {
+        const prefix = `${name}=`;
+        const value = document.cookie.split('; ').find(item => item.startsWith(prefix));
+        return value ? decodeURIComponent(value.slice(prefix.length)) : '';
+    }
+
     function apiHeaders() {
         return {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
+            'X-CSRFToken': readCookie('csrftoken') || csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
         };
+    }
+
+    async function parseApiResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            try {
+                return await response.json();
+            } catch (error) {
+                return { error: 'استجابة غير صالحة من الخادم.' };
+            }
+        }
+        // Django can return an HTML error page for a rejected request. Keep it out of the UI.
+        await response.text();
+        return { error: response.status === 403 ? 'انتهت صلاحية الحماية، أعد المحاولة.' : 'تعذّر الاتصال بالخادم.' };
+    }
+
+    async function ensureCsrfCookie() {
+        await fetch('/api/csrf/', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    }
+
+    async function apiRequest(url, options = {}, retry = true) {
+        const response = await fetch(url, { ...options, credentials: 'same-origin' });
+        const payload = await parseApiResponse(response);
+        if (response.status === 403 && retry) {
+            await ensureCsrfCookie();
+            return apiRequest(url, { ...options, headers: { ...options.headers, ...apiHeaders() } }, false);
+        }
+        return { response, payload };
     }
 
     const icons = {
@@ -205,12 +239,11 @@
     }
 
     async function syncPostAction(card, actionType) {
-        const response = await fetch(`/api/posts/${encodeURIComponent(card.dataset.postId)}/${actionType}/`, {
+        const { response, payload } = await apiRequest(`/api/posts/${encodeURIComponent(card.dataset.postId)}/${actionType}/`, {
             method: 'POST',
             headers: apiHeaders(),
             body: JSON.stringify({})
         });
-        const payload = await response.json();
         if (!response.ok) {
             if (payload.requires_auth) openAuth('login');
             throw new Error(payload.error || 'تعذّر حفظ التغيير');
@@ -220,12 +253,11 @@
     }
 
     async function toggleFollow(handle, button, wasFollowing) {
-        const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}/follow/`, {
+        const { response, payload } = await apiRequest(`/api/profiles/${encodeURIComponent(handle)}/follow/`, {
             method: 'POST',
             headers: apiHeaders(),
             body: JSON.stringify({})
         });
-        const payload = await response.json();
         if (!response.ok) {
             if (payload.requires_auth) openAuth('login');
             throw new Error(payload.error || 'تعذّرت متابعة الحساب');
@@ -268,12 +300,11 @@
         publishButton.textContent = replyTo ? 'جارٍ الرد…' : 'جارٍ النشر…';
         try {
             const endpoint = replyTo ? `/api/posts/${encodeURIComponent(replyTo)}/reply/` : '/api/posts/';
-            const response = await fetch(endpoint, {
+            const { response, payload } = await apiRequest(endpoint, {
                 method: 'POST',
                 headers: apiHeaders(),
                 body: JSON.stringify({ body })
             });
-            const payload = await response.json();
             if (!response.ok) {
                 if (payload.requires_auth) openAuth('login');
                 throw new Error(payload.error || 'تعذّر الحفظ');
@@ -324,8 +355,7 @@
 
     async function loadSearchResults(query) {
         try {
-            const response = await fetch(`/api/posts/?q=${encodeURIComponent(query)}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            const payload = await response.json();
+            const { response, payload } = await apiRequest(`/api/posts/?q=${encodeURIComponent(query)}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok || query !== searchTerm) return;
             feedList.replaceChildren(...payload.posts.map(renderPost));
             updateVisibility();
@@ -547,12 +577,11 @@
         authSubmit.disabled = true;
         if (authError) authError.hidden = true;
         try {
-            const response = await fetch(`/api/auth/${authMode}/`, {
+            const { response, payload: result } = await apiRequest(`/api/auth/${authMode}/`, {
                 method: 'POST',
                 headers: apiHeaders(),
                 body: JSON.stringify(payload)
             });
-            const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'تعذّر إكمال العملية');
             window.location.reload();
         } catch (error) {
