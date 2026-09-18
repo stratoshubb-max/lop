@@ -242,7 +242,7 @@
             headers: apiHeaders(),
             body: JSON.stringify({})
         });
-        if (!response.ok) {
+        if (!response.ok || !payload.post) {
             if (payload.requires_auth) openAuth('login');
             throw new Error(payload.error || 'تعذّر حفظ التغيير');
         }
@@ -256,7 +256,7 @@
             headers: apiHeaders(),
             body: JSON.stringify({})
         });
-        if (!response.ok) {
+        if (!response.ok || typeof payload.following !== 'boolean') {
             if (payload.requires_auth) openAuth('login');
             throw new Error(payload.error || 'تعذّرت متابعة الحساب');
         }
@@ -303,7 +303,7 @@
                 headers: apiHeaders(),
                 body: JSON.stringify({ body })
             });
-            if (!response.ok) {
+            if (!response.ok || !payload.post) {
                 if (payload.requires_auth) openAuth('login');
                 throw new Error(payload.error || 'تعذّر الحفظ');
             }
@@ -355,6 +355,7 @@
         try {
             const { response, payload } = await apiRequest(`/api/posts/?q=${encodeURIComponent(query)}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok || query !== searchTerm) return;
+            if (!Array.isArray(payload.posts)) throw new Error(payload.error || 'تعذّر البحث الآن.');
             feedList.replaceChildren(...payload.posts.map(renderPost));
             updateVisibility();
         } catch (error) {
@@ -580,7 +581,7 @@
                 headers: apiHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error(result.error || 'تعذّر إكمال العملية');
+            if (!response.ok || !result.ok) throw new Error(result.error || 'تعذّر إكمال العملية');
             window.location.reload();
         } catch (error) {
             if (authError) {
