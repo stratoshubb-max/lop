@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=4">
 </head>
 <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -32,16 +32,7 @@
                 </span>
             </a>
 
-            <nav class="primary-nav" aria-label="التنقّل الرئيسي">
-                <a class="nav-item is-active" href="#feed" data-nav="home"><span>الخلاصة</span></a>
-                <a class="nav-item" href="#discover" data-nav="discover"><span>استكشف</span></a>
-                <a class="nav-item" href="#circles" data-nav="circles"><span>المجتمعات</span></a>
-                <a class="nav-item" href="#principles" data-toast="أثر مساحة تكتب فيها بصدق">المبادئ</a>
-            </nav>
-
             <div class="topbar-actions">
-                <button class="header-login" type="button" data-toast="تسجيل الدخول سيكون متاحًا قريبًا">تسجيل الدخول</button>
-                <button class="header-outline" type="button" data-toast="يسعدنا أن نسمع منك">تواصل معنا <span>→</span></button>
                 <button class="header-cta" type="button" data-open-composer>اكتب أثرًا <span>↓</span></button>
                 <button class="icon-button search-trigger" id="searchTrigger" type="button" aria-label="بحث">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -50,28 +41,15 @@
         </div>
     </header>
 
+    <nav class="mobile-nav" aria-label="التنقّل السريع">
+        <a class="mobile-nav-item is-active" href="#feed" data-nav="home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.6"/></svg><span>الخلاصة</span></a>
+        <a class="mobile-nav-item" href="#discover" data-nav="discover"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>استكشف</span></a>
+        <button class="mobile-nav-compose" type="button" data-open-composer aria-label="اكتب أثرًا جديدًا">+</button>
+        <a class="mobile-nav-item" href="#circles" data-nav="circles"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19c.4-3.1 2.2-5 5.5-5s5.1 1.9 5.5 5M16 5.5a3 3 0 0 1 0 5.8M17 14c2.2.4 3.5 2 3.7 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>دوائرك</span></a>
+        <button class="mobile-nav-item" type="button" data-toast="ملفك الشخصي قريبًا"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.5-4 2.8-6 7-6s6.5 2 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>ملفي</span></button>
+    </nav>
+
     <main class="site-main">
-        <section class="landing-hero" aria-labelledby="landingTitle">
-            <div class="landing-copy">
-                <div class="landing-kicker"><span></span>شبكة عربية للأفكار</div>
-                <h1 id="landingTitle">نبني مساحة<br><em>للأفكار الطموحة.</em></h1>
-                <p>أثر هو المكان الذي تتحوّل فيه الملاحظات العابرة إلى حوار، وتجد الأفكار الجيدة طريقها بهدوء.</p>
-                <div class="landing-actions">
-                    <button class="landing-button landing-button-dark" type="button" data-open-composer>اكتب أثرًا جديدًا <span>↓</span></button>
-                    <a class="landing-button landing-button-soft" href="#feed">اكتشف الخلاصة <span>←</span></a>
-                </div>
-            </div>
-
-            <div class="landing-meta" aria-label="عن مساحة أثر">
-                <span><b>٢٤٬٨٠٠</b> صوت في المساحة</span>
-                <i></i>
-                <span>منشورات قصيرة، أفكار طويلة</span>
-                <span class="landing-meta-arrow">↘</span>
-            </div>
-        </section>
-
-        <div class="section-divider"><span>خلاصة أثر</span><i></i><span>اترك شيئًا وراءك</span></div>
-
         <section class="app-shell" id="feed">
         <aside class="left-rail" aria-label="اقتراحات ومعلومات">
             <div class="rail-sticky">
@@ -117,16 +95,17 @@
         </aside>
 
         <section class="feed-column" aria-label="خلاصة المنشورات">
-            <section class="hero-panel">
+            <section class="hero-panel feed-heading">
                 <div class="hero-topline">
                     <div class="eyebrow"><span class="signal-dot"></span>الجمعة، ١٨ سبتمبر ٢٠٢٦</div>
                     <div class="live-pill"><span></span>مباشر الآن</div>
                 </div>
-                <h1>مساحة لما<br><span>يستحق أن يبقى.</span></h1>
-                <p class="hero-description">أثر هو المكان الذي تتحوّل فيه الملاحظات العابرة إلى حوار، وتجد الأفكار الجيدة طريقها بهدوء.</p>
-                <div class="hero-bottomline">
-                    <div class="member-note"><span class="member-faces"><i class="tone-violet">ل</i><i class="tone-copper">س</i><i class="tone-mint">ن</i></span><span>٢٤٬٨٠٠ صوت في المساحة</span></div>
-                    <span class="hero-arrow" aria-hidden="true">↗</span>
+                <div class="feed-title-row">
+                    <div>
+                        <h1>الخلاصة</h1>
+                        <p>أفكار من دوائرك، تصل إليك بهدوء.</p>
+                    </div>
+                    <button class="feed-view-button" type="button" data-toast="الخلاصة مرتبة حسب الأحدث" aria-label="تحديث الخلاصة">↻</button>
                 </div>
             </section>
 
@@ -207,6 +186,28 @@
 
         <aside class="right-rail" aria-label="مساحتك والمواضيع الرائجة" id="discover">
             <div class="rail-sticky">
+                <nav class="side-nav" aria-label="تنقّل أثر الجانبي">
+                    <div class="side-nav-label">المساحة</div>
+                    <a class="side-nav-item is-active" href="#feed" data-nav="home">
+                        <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.6"/></svg></span>
+                        <span>الخلاصة</span><b>⌘ ١</b>
+                    </a>
+                    <a class="side-nav-item" href="#discover" data-nav="discover">
+                        <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                        <span>استكشف</span><b>⌘ ٢</b>
+                    </a>
+                    <a class="side-nav-item" href="#circles" data-nav="circles">
+                        <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19c.4-3.1 2.2-5 5.5-5s5.1 1.9 5.5 5M16 5.5a3 3 0 0 1 0 5.8M17 14c2.2.4 3.5 2 3.7 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                        <span>المجتمعات</span><b>⌘ ٣</b>
+                    </a>
+                    <a class="side-nav-item" href="#saved" data-toast="المحفوظات ستظهر هنا قريبًا">
+                        <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 5.8A1.8 1.8 0 0 1 7.8 4h8.4A1.8 1.8 0 0 1 18 5.8V20l-6-3.6L6 20V5.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+                        <span>المحفوظات</span><b>⌘ ٤</b>
+                    </a>
+                    <div class="side-nav-divider"></div>
+                    <button class="side-nav-cta" type="button" data-open-composer><span>اكتب أثرًا جديدًا</span><b>↘</b></button>
+                </nav>
+
                 <section class="profile-card">
                     <div class="profile-card-top">
                         <span class="section-label">مساحتك</span>
