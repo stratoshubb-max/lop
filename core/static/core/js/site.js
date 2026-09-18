@@ -38,17 +38,15 @@
     }
 
     async function parseApiResponse(response) {
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-            try {
-                return await response.json();
-            } catch (error) {
-                return { error: 'استجابة غير صالحة من الخادم.' };
-            }
+        // Read as text first: Django's debug/CSRF pages are HTML even when a client expected JSON.
+        // Parsing manually keeps raw "Unexpected token <" errors out of the user-facing UI.
+        const raw = await response.text();
+        if (!raw.trim()) return {};
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            return { error: response.status === 403 ? 'انتهت صلاحية الحماية، أعد المحاولة.' : 'تعذّر الاتصال بالخادم.' };
         }
-        // Django can return an HTML error page for a rejected request. Keep it out of the UI.
-        await response.text();
-        return { error: response.status === 403 ? 'انتهت صلاحية الحماية، أعد المحاولة.' : 'تعذّر الاتصال بالخادم.' };
     }
 
     async function ensureCsrfCookie() {
