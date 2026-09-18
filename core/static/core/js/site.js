@@ -211,7 +211,10 @@
             body: JSON.stringify({})
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'تعذّر حفظ التغيير');
+        if (!response.ok) {
+            if (payload.requires_auth) openAuth('login');
+            throw new Error(payload.error || 'تعذّر حفظ التغيير');
+        }
         applyPostState(card, payload.post);
         return payload;
     }
@@ -223,7 +226,10 @@
             body: JSON.stringify({})
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'تعذّرت متابعة الحساب');
+        if (!response.ok) {
+            if (payload.requires_auth) openAuth('login');
+            throw new Error(payload.error || 'تعذّرت متابعة الحساب');
+        }
         const following = Boolean(payload.following);
         button.classList.toggle('is-following', following);
         button.textContent = following ? 'تتابع' : 'تابع';
@@ -268,7 +274,10 @@
                 body: JSON.stringify({ body })
             });
             const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'تعذّر الحفظ');
+            if (!response.ok) {
+                if (payload.requires_auth) openAuth('login');
+                throw new Error(payload.error || 'تعذّر الحفظ');
+            }
             if (replyTo) {
                 const target = feedList.querySelector(`[data-post-id="${CSS.escape(replyTo)}"]`);
                 if (target) applyPostState(target, payload.post);
@@ -379,10 +388,10 @@
             return;
         }
 
-        const openAuth = event.target.closest('[data-open-auth]');
-        if (openAuth) {
+        const authTrigger = event.target.closest('[data-open-auth]');
+        if (authTrigger) {
             event.preventDefault();
-            openAuth(openAuth.dataset.authMode || 'login');
+            openAuth(authTrigger.dataset.authMode || 'login');
             return;
         }
 
