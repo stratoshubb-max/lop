@@ -15,6 +15,42 @@
     const authSubmit = document.getElementById('authSubmit');
     const authStatus = document.querySelector('meta[name="auth-status"]')?.content === 'true';
     let authMode = 'login';
+
+    // Stepped registration wizard + profile-photo state (elements exist on home/profile pages).
+    const registerWizard = document.getElementById('registerWizard');
+    const regProgressBar = document.getElementById('regProgressBar');
+    const regError = document.getElementById('regError');
+    const regBack = document.getElementById('regBack');
+    const regNext = document.getElementById('regNext');
+    const regSkipPhoto = document.getElementById('regSkipPhoto');
+    const regDisplayName = document.getElementById('regDisplayName');
+    const regUsername = document.getElementById('regUsername');
+    const regAvailability = document.getElementById('regAvailability');
+    const regPassword = document.getElementById('regPassword');
+    const regPassword2 = document.getElementById('regPassword2');
+    const regStrength = document.getElementById('regStrength');
+    const regStrengthLabel = document.getElementById('regStrengthLabel');
+    const regBio = document.getElementById('regBio');
+    const regBioCount = document.getElementById('regBioCount');
+    const regAvatarTone = document.getElementById('regAvatarTone');
+    const regReviewName = document.getElementById('regReviewName');
+    const regReviewHandle = document.getElementById('regReviewHandle');
+    const regPfpFile = document.getElementById('regPfpFile');
+    const regPfpImg = document.getElementById('regPfpImg');
+    const regPfpFallback = document.getElementById('regPfpFallback');
+    const regPfpRemove = document.getElementById('regPfpRemove');
+    const regCropperEl = document.getElementById('regCropper');
+    const editPfpFile = document.getElementById('editPfpFile');
+    const editPfpRemove = document.getElementById('editPfpRemove');
+    let regStep = 1;
+    let regSubmitting = false;
+    let regToneTouched = false;
+    let regAvatarDataUrl = '';
+    let editAvatarDataUrl = null; // null = unchanged, '' = removed, data-URL = new photo
+    let availabilityTimer;
+    let lastAvailability = null;
+    let regCropperInstance = null;
+    let editCropperInstance = null;
     const formatter = new Intl.NumberFormat('en-US', { useGrouping: false });
     let toastTimer;
     let currentTab = 'all';
@@ -144,23 +180,20 @@
     function setAuthMode(mode = 'login') {
         authMode = mode;
         const register = mode === 'register';
-        const displayField = document.querySelector('.auth-display-field');
-        const usernameHint = document.querySelector('.auth-username-hint');
-        const displayName = document.getElementById('authDisplayName');
-        const username = document.getElementById('authUsername');
         const title = document.getElementById('authTitle');
-        if (displayField) displayField.hidden = !register;
-        if (usernameHint) usernameHint.hidden = !register;
-        if (displayName) displayName.required = register;
-        if (username) username.required = true;
+        const subtitle = document.getElementById('authSubtitle');
         if (title) title.textContent = register ? 'Create your account' : 'Welcome back.';
-        if (authSubmit) authSubmit.innerHTML = register ? 'Create Account <span>↗</span>' : 'Sign In <span>↗</span>';
+        if (subtitle) subtitle.textContent = register ? 'Three quick steps — about a minute.' : 'Sign in to continue the conversation.';
+        if (authForm) authForm.hidden = register;
+        if (registerWizard) registerWizard.hidden = !register;
         document.querySelectorAll('[data-auth-tab]').forEach(tab => {
             const active = tab.dataset.authTab === mode;
             tab.classList.toggle('is-active', active);
             tab.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         if (authError) authError.hidden = true;
+        if (regError) regError.hidden = true;
+        if (register) showRegStep(1, true);
     }
 
     function openAuth(mode = 'login') {
@@ -169,7 +202,7 @@
         authLayer.hidden = false;
         document.body.style.overflow = 'hidden';
         window.setTimeout(() => {
-            const target = mode === 'register' ? document.getElementById('authDisplayName') : document.getElementById('authUsername');
+            const target = mode === 'register' ? document.getElementById('regDisplayName') : document.getElementById('authUsername');
             target?.focus();
         }, 40);
     }
@@ -252,6 +285,10 @@
         document.body.style.overflow = 'hidden';
         updateProfileCounters();
         if (profileSettingsError) profileSettingsError.hidden = true;
+        editAvatarDataUrl = null;
+        const editCropperReset = document.getElementById('editCropper');
+        if (editCropperReset) editCropperReset.hidden = true;
+        if (editPfpFile) editPfpFile.value = '';
     }
 
     function closeProfileSettings() {
@@ -328,6 +365,24 @@
             .replace(/'/g, '&#039;');
     }
 
+    function avatarHTML(profile, sizeClass) {
+        const image = (profile && profile.avatar_image) || '';
+        if (image) {
+            return `<img class="avatar ${sizeClass} avatar-photo" src="${escapeHTML(image)}" alt="">`;
+        }
+        return `<span class="avatar ${sizeClass} tone-${escapeHTML((profile && profile.avatar_tone) || 'lime')}">${escapeHTML((profile && profile.avatar_initial) || 'A')}</span>`;
+    }
+
+    function replaceAvatarNode(node, profile, sizeClass, nodeId) {
+        if (!node) return;
+        const template = document.createElement('template');
+        template.innerHTML = avatarHTML(profile, sizeClass).trim();
+        const replacement = template.content.firstChild;
+        if (!replacement) return;
+        if (nodeId) replacement.id = nodeId;
+        node.replaceWith(replacement);
+    }
+
     function updateComposerState() {
         if (!postInput || !publishButton || !charCount) return;
         const length = postInput.value.length;
@@ -351,7 +406,7 @@
         article.innerHTML = `
             <div class="post-header">
                 <a href="/u/${encodeURIComponent(post.handle || '')}/" class="post-header-link">
-                    <span class="avatar avatar-large tone-${escapeHTML(post.avatar_tone || 'lime')}">${escapeHTML(post.avatar_initial || 'A')}</span>
+                    ${avatarHTML(post, 'avatar-large')}
                 </a>
                 <div class="post-author">
                     <div class="author-line">
@@ -686,6 +741,34 @@
             return;
         }
 
+        const passwordToggle = event.target.closest('[data-toggle-password]');
+        if (passwordToggle) {
+            event.preventDefault();
+            const input = document.getElementById(passwordToggle.dataset.togglePassword || '');
+            if (input) {
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                passwordToggle.textContent = show ? 'Hide' : 'Show';
+                passwordToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            }
+            return;
+        }
+
+        const regTone = event.target.closest('[data-reg-tone]');
+        if (regTone) {
+            event.preventDefault();
+            regToneTouched = true;
+            const tone = regTone.dataset.regTone;
+            if (regAvatarTone) regAvatarTone.value = tone;
+            document.querySelectorAll('[data-reg-tone]').forEach(swatch => {
+                const isSelected = swatch === regTone;
+                swatch.classList.toggle('is-active', isSelected);
+                swatch.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+            });
+            if (regPfpFallback) regPfpFallback.className = `avatar avatar-profile tone-${tone}`;
+            return;
+        }
+
         const toneChoice = event.target.closest('[data-tone-choice]');
         if (toneChoice) {
             event.preventDefault();
@@ -923,15 +1006,20 @@
         btnSaveProfileSettings.textContent = 'Saving...';
         if (profileSettingsError) profileSettingsError.hidden = true;
 
+        const profilePayload = {
+            display_name: displayName,
+            bio: bio,
+            avatar_tone: avatarTone
+        };
+        if (editAvatarDataUrl !== null) {
+            profilePayload.avatar_image = editAvatarDataUrl;
+        }
+
         try {
             const { response, payload } = await apiRequest('/api/auth/update_profile/', {
                 method: 'POST',
                 headers: apiHeaders(),
-                body: JSON.stringify({
-                    display_name: displayName,
-                    bio: bio,
-                    avatar_tone: avatarTone
-                })
+                body: JSON.stringify(profilePayload)
             });
 
             if (!response.ok || !payload.ok) {
@@ -945,11 +1033,7 @@
             if (profileTopName) profileTopName.textContent = updated.display_name;
             const profileBioDisplay = document.getElementById('profileBioDisplay');
             if (profileBioDisplay) profileBioDisplay.textContent = updated.bio || 'No bio yet.';
-            const heroAvatar = document.getElementById('profileHeroAvatar');
-            if (heroAvatar) {
-                heroAvatar.className = `avatar avatar-hero tone-${updated.avatar_tone}`;
-                heroAvatar.textContent = updated.avatar_initial;
-            }
+            replaceAvatarNode(document.getElementById('profileHeroAvatar'), updated, 'avatar-hero', 'profileHeroAvatar');
             const coverBanner = document.querySelector('.profile-cover-banner');
             if (coverBanner) {
                 coverBanner.className = `profile-cover-banner tone-bg-${updated.avatar_tone}`;
@@ -959,14 +1043,28 @@
             if (profileMain) {
                 const nameElem = profileMain.querySelector('strong');
                 if (nameElem) nameElem.textContent = updated.display_name;
-                const av = profileMain.querySelector('.avatar');
-                if (av) {
-                    av.className = `avatar avatar-profile tone-${updated.avatar_tone}`;
-                    av.textContent = updated.avatar_initial;
-                }
+                replaceAvatarNode(profileMain.querySelector('.avatar'), updated, 'avatar-profile', '');
             }
+            replaceAvatarNode(document.querySelector('.compose-row > .avatar'), updated, 'avatar-large', '');
             const profileCardBio = document.querySelector('.profile-card .profile-bio');
             if (profileCardBio) profileCardBio.textContent = updated.bio || '';
+
+            const editPreviewImg = document.getElementById('editAvatarPreviewImg');
+            if (editPreviewImg) {
+                if (updated.avatar_image) {
+                    editPreviewImg.src = updated.avatar_image;
+                    editPreviewImg.hidden = false;
+                } else {
+                    editPreviewImg.hidden = true;
+                    editPreviewImg.removeAttribute('src');
+                }
+            }
+            if (editAvatarPreview) {
+                editAvatarPreview.className = `avatar avatar-hero tone-${updated.avatar_tone || 'violet'}`;
+                editAvatarPreview.textContent = updated.avatar_initial || 'A';
+                editAvatarPreview.hidden = Boolean(updated.avatar_image);
+            }
+            editAvatarDataUrl = null;
 
             closeProfileSettings();
             showToast('Profile updated successfully');
@@ -1012,35 +1110,16 @@
     authForm?.addEventListener('submit', async event => {
         event.preventDefault();
         if (!authSubmit) return;
-        let displayName = document.getElementById('authDisplayName')?.value.trim() || '';
-        let username = (document.getElementById('authUsername')?.value.trim().toLowerCase() || '').replace(/^@+/, '');
+        const username = (document.getElementById('authUsername')?.value.trim().toLowerCase() || '').replace(/^@+/, '');
         const password = document.getElementById('authPassword')?.value || '';
 
-        if (authMode === 'register') {
-            if (!username && displayName) {
-                const candidate = displayName.toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 30);
-                if (candidate) username = candidate;
+        if (!username) {
+            if (authError) {
+                authError.textContent = 'Please enter your username.';
+                authError.hidden = false;
             }
-            if (!displayName && username) {
-                displayName = username;
-            }
-            if (!username || username.length < 1 || username.length > 30) {
-                if (authError) {
-                    authError.textContent = 'Username must be between 1 and 30 characters.';
-                    authError.hidden = false;
-                }
-                return;
-            }
-        } else {
-            if (!username) {
-                if (authError) {
-                    authError.textContent = 'Please enter your username.';
-                    authError.hidden = false;
-                }
-                return;
-            }
+            return;
         }
-
         if (!password || password.length < 8) {
             if (authError) {
                 authError.textContent = 'Password must be at least 8 characters.';
@@ -1049,23 +1128,19 @@
             return;
         }
 
-        const payload = authMode === 'register'
-            ? { display_name: displayName, handle: username, password }
-            : { username, password };
-
         authSubmit.disabled = true;
         if (authError) authError.hidden = true;
         try {
-            const { response, payload: result } = await apiRequest(`/api/auth/${authMode}/`, {
+            const { response, payload: result } = await apiRequest('/api/auth/login/', {
                 method: 'POST',
                 headers: apiHeaders(),
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ username, password })
             });
-            if (!response.ok || !result.ok) throw new Error(result.error || 'Could not complete operation');
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Could not sign in');
             if (result.token) {
                 setStoredToken(result.token);
             }
-            showToast(authMode === 'register' ? `Account created! Welcome, @${username}` : 'Signed in successfully');
+            showToast('Signed in successfully');
             const targetUrl = result.token ? `/?auth_token=${encodeURIComponent(result.token)}` : '/';
             window.location.href = targetUrl;
         } catch (error) {
@@ -1076,6 +1151,541 @@
         } finally {
             authSubmit.disabled = false;
         }
+    });
+
+    // ------------------------------------------------------------------
+    // Stepped registration wizard (Create Account in 3 steps)
+    // ------------------------------------------------------------------
+    const HANDLE_RE = /^[a-z0-9_.-]{1,30}$/;
+
+    function showRegStep(step, silent = false) {
+        regStep = Math.min(Math.max(step, 1), 3);
+        document.querySelectorAll('[data-reg-panel]').forEach(panel => {
+            panel.hidden = Number(panel.dataset.regPanel) !== regStep;
+        });
+        document.querySelectorAll('[data-reg-dot]').forEach(dot => {
+            const n = Number(dot.dataset.regDot);
+            dot.classList.toggle('is-current', n === regStep);
+            dot.classList.toggle('is-done', n < regStep);
+        });
+        if (regProgressBar) regProgressBar.style.width = `${(regStep / 3) * 100}%`;
+        if (regBack) regBack.hidden = regStep === 1;
+        if (regNext) regNext.innerHTML = regStep === 3 ? 'Create Account <span>↗</span>' : 'Continue <span>→</span>';
+        if (regSkipPhoto) regSkipPhoto.hidden = regStep !== 3;
+        if (regError && !silent) regError.hidden = true;
+        if (regStep === 3) {
+            updateRegReview();
+            autoSelectRegTone();
+            if (regCropperInstance) regCropperInstance.refresh();
+        }
+        if (!silent) {
+            const focusTarget = regStep === 1 ? regDisplayName : regStep === 2 ? regPassword : regBio;
+            window.setTimeout(() => focusTarget?.focus(), 60);
+        }
+    }
+
+    function regFail(message) {
+        if (regError) {
+            regError.textContent = message;
+            regError.hidden = false;
+        }
+        return false;
+    }
+
+    function cleanRegHandle() {
+        return (regUsername?.value.trim().toLowerCase() || '').replace(/^@+/, '');
+    }
+
+    function validateRegStep(step) {
+        if (step === 1) {
+            let handle = cleanRegHandle();
+            let name = regDisplayName?.value.trim() || '';
+            if (!handle && name) {
+                handle = name.toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 30);
+                if (regUsername) regUsername.value = handle;
+            }
+            if (!name && handle) {
+                name = handle;
+                if (regDisplayName) regDisplayName.value = name;
+            }
+            if (name.length > 50) return regFail('Display Name cannot exceed 50 characters.');
+            if (!handle) return regFail('Choose a username first — or type a display name and we’ll suggest one.');
+            if (!HANDLE_RE.test(handle)) return regFail('Username: 1–30 characters (letters, numbers, _, -, .).');
+            if (lastAvailability && lastAvailability.handle === handle && !lastAvailability.available) {
+                return regFail(`@${handle} is already taken. Try another one.`);
+            }
+            return true;
+        }
+        if (step === 2) {
+            const pw = regPassword?.value || '';
+            const pw2 = regPassword2?.value || '';
+            if (!pw || pw.length < 8) return regFail('Password must be at least 8 characters.');
+            if (pw !== pw2) return regFail('Passwords don’t match. Try again.');
+            return true;
+        }
+        return true;
+    }
+
+    function setAvailability(state, message) {
+        if (!regAvailability) return;
+        regAvailability.classList.remove('is-ok', 'is-bad');
+        if (state) regAvailability.classList.add(state);
+        regAvailability.textContent = message;
+    }
+
+    async function checkRegAvailability() {
+        const handle = cleanRegHandle();
+        if (!handle || !HANDLE_RE.test(handle)) {
+            lastAvailability = null;
+            setAvailability('', '1–30 characters: letters, numbers, _, -, . Must be unique.');
+            return;
+        }
+        setAvailability('', 'Checking availability...');
+        try {
+            const { response, payload } = await apiRequest(`/api/auth/check_handle/?handle=${encodeURIComponent(handle)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) throw new Error('check failed');
+            lastAvailability = { handle, available: Boolean(payload.available) };
+            if (payload.available) setAvailability('is-ok', `✓ @${handle} is available`);
+            else setAvailability('is-bad', `✗ @${handle} is taken — try another`);
+        } catch (err) {
+            setAvailability('', 'Could not check availability — you can still continue.');
+        }
+    }
+
+    function updatePasswordStrength() {
+        const pw = regPassword?.value || '';
+        let score = 0;
+        if (pw.length >= 8) score += 1;
+        if (pw.length >= 12) score += 1;
+        if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 1;
+        if (/\d/.test(pw)) score += 1;
+        if (/[^a-zA-Z0-9]/.test(pw)) score += 1;
+        const level = pw ? Math.min(4, Math.max(1, Math.ceil(score / 1.5))) : 0;
+        if (regStrength) regStrength.className = `password-strength${level ? ` strength-${level}` : ''}`;
+        const labels = ['', 'Weak — add more characters', 'Fair — mix in numbers or symbols', 'Good password', 'Strong password'];
+        if (regStrengthLabel) {
+            regStrengthLabel.textContent = pw ? labels[level] : 'Use 8+ characters — mix letters, numbers & symbols for strength.';
+        }
+    }
+
+    function updateRegReview() {
+        const handle = cleanRegHandle();
+        const name = regDisplayName?.value.trim() || handle || '—';
+        if (regReviewName) regReviewName.textContent = name;
+        if (regReviewHandle) regReviewHandle.textContent = handle ? `@${handle}` : '@—';
+        if (regPfpFallback && !regAvatarDataUrl) {
+            const first = Array.from(name)[0] || 'A';
+            regPfpFallback.textContent = first.toUpperCase();
+        }
+    }
+
+    function autoSelectRegTone() {
+        if (regToneTouched || !regAvatarTone) return;
+        const tones = [...document.querySelectorAll('[data-reg-tone]')].map(el => el.dataset.regTone);
+        if (!tones.length) return;
+        const tone = tones[cleanRegHandle().length % tones.length];
+        regAvatarTone.value = tone;
+        document.querySelectorAll('[data-reg-tone]').forEach(el => {
+            const active = el.dataset.regTone === tone;
+            el.classList.toggle('is-active', active);
+            el.setAttribute('aria-checked', active ? 'true' : 'false');
+        });
+        if (regPfpFallback) regPfpFallback.className = `avatar avatar-profile tone-${tone}`;
+    }
+
+    async function submitRegistration(skipPhoto) {
+        const handle = cleanRegHandle();
+        if (!HANDLE_RE.test(handle)) {
+            showRegStep(1);
+            regFail('Please fix your username first.');
+            return;
+        }
+        const pw = regPassword?.value || '';
+        if (pw.length < 8 || pw !== (regPassword2?.value || '')) {
+            showRegStep(2);
+            regFail('Please fix your password first.');
+            return;
+        }
+        let name = regDisplayName?.value.trim() || '';
+        if (!name) name = handle;
+        let avatar = skipPhoto ? '' : (regAvatarDataUrl || (regCropperInstance && regCropperInstance.isLoaded() ? regCropperInstance.exportCropped() : ''));
+        const bio = (regBio?.value.trim() || '').slice(0, 160);
+        const tone = regAvatarTone?.value || '';
+
+        regSubmitting = true;
+        if (regNext) {
+            regNext.disabled = true;
+            regNext.innerHTML = 'Creating... <span>✦</span>';
+        }
+        if (regError) regError.hidden = true;
+        try {
+            const { response, payload } = await apiRequest('/api/auth/register/', {
+                method: 'POST',
+                headers: apiHeaders(),
+                body: JSON.stringify({ display_name: name, handle, password: pw, bio, avatar_tone: tone, avatar_image: avatar })
+            });
+            if (!response.ok || !payload.ok) throw new Error(payload.error || 'Could not create account');
+            if (payload.token) setStoredToken(payload.token);
+            showToast(`Account created! Welcome, @${handle}`);
+            window.location.href = payload.token ? `/?auth_token=${encodeURIComponent(payload.token)}` : '/';
+        } catch (error) {
+            regFail(error.message || 'Could not create account');
+            if (/taken|username/i.test(error.message || '')) showRegStep(1, true);
+        } finally {
+            regSubmitting = false;
+            if (regNext) {
+                regNext.disabled = false;
+                regNext.innerHTML = 'Create Account <span>↗</span>';
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Reusable in-browser photo cropper (drag to move, slider/wheel to zoom)
+    // ------------------------------------------------------------------
+    function createCropper({ stage, img, zoomInput, onCrop }) {
+        const state = { scale: 1, x: 0, y: 0, base: 1, loaded: false, naturalW: 0, naturalH: 0 };
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        function stageSize() {
+            return stage ? stage.clientWidth : 0;
+        }
+
+        function clampPosition() {
+            const size = stageSize() || 280;
+            const w = state.naturalW * state.base * state.scale;
+            const h = state.naturalH * state.base * state.scale;
+            state.x = Math.min(0, Math.max(size - w, state.x));
+            state.y = Math.min(0, Math.max(size - h, state.y));
+        }
+
+        function render() {
+            if (!state.loaded || !img) return;
+            const w = state.naturalW * state.base * state.scale;
+            const h = state.naturalH * state.base * state.scale;
+            img.style.width = `${w}px`;
+            img.style.height = `${h}px`;
+            img.style.transform = `translate(${state.x}px, ${state.y}px)`;
+        }
+
+        function notify() {
+            if (onCrop) onCrop(exportCropped());
+        }
+
+        function setImage(dataUrl) {
+            if (!img || !stage) return;
+            state.loaded = false;
+            img.onload = () => {
+                state.naturalW = img.naturalWidth;
+                state.naturalH = img.naturalHeight;
+                if (!state.naturalW || !state.naturalH) return;
+                const size = stageSize() || 280;
+                state.base = Math.max(size / state.naturalW, size / state.naturalH);
+                state.scale = 1;
+                state.x = (size - state.naturalW * state.base) / 2;
+                state.y = (size - state.naturalH * state.base) / 2;
+                if (zoomInput) zoomInput.value = '1';
+                state.loaded = true;
+                render();
+                notify();
+            };
+            img.src = dataUrl;
+        }
+
+        function exportCropped(outputSize = 256) {
+            if (!state.loaded || !img) return '';
+            const size = stageSize() || 280;
+            const unit = state.base * state.scale;
+            if (!unit) return '';
+            const sx = -state.x / unit;
+            const sy = -state.y / unit;
+            const sSize = size / unit;
+            const canvas = document.createElement('canvas');
+            canvas.width = outputSize;
+            canvas.height = outputSize;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return '';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, outputSize, outputSize);
+            try {
+                ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, outputSize, outputSize);
+            } catch (err) {
+                return '';
+            }
+            return canvas.toDataURL('image/jpeg', 0.87);
+        }
+
+        if (stage) {
+            stage.addEventListener('pointerdown', event => {
+                if (!state.loaded) return;
+                dragging = true;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                try {
+                    stage.setPointerCapture(event.pointerId);
+                } catch (err) {}
+                event.preventDefault();
+            });
+            stage.addEventListener('pointermove', event => {
+                if (!dragging || !state.loaded) return;
+                state.x += event.clientX - lastX;
+                state.y += event.clientY - lastY;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                clampPosition();
+                render();
+            });
+            const endDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                notify();
+            };
+            stage.addEventListener('pointerup', endDrag);
+            stage.addEventListener('pointercancel', endDrag);
+            stage.addEventListener('wheel', event => {
+                if (!state.loaded) return;
+                event.preventDefault();
+                const next = Math.min(3, Math.max(1, state.scale + (event.deltaY < 0 ? 0.08 : -0.08)));
+                state.scale = Math.round(next * 100) / 100;
+                if (zoomInput) zoomInput.value = String(state.scale);
+                clampPosition();
+                render();
+                notify();
+            }, { passive: false });
+        }
+
+        if (zoomInput) {
+            zoomInput.addEventListener('input', () => {
+                if (!state.loaded) return;
+                state.scale = Number(zoomInput.value) || 1;
+                clampPosition();
+                render();
+                notify();
+            });
+        }
+
+        return {
+            setImage,
+            exportCropped,
+            isLoaded: () => state.loaded,
+            reset() {
+                state.loaded = false;
+                state.scale = 1;
+                state.x = 0;
+                state.y = 0;
+                if (img) img.removeAttribute('src');
+                if (zoomInput) zoomInput.value = '1';
+            },
+            refresh() {
+                if (!state.loaded || !state.naturalW) return;
+                const size = stageSize();
+                if (!size) return;
+                state.base = Math.max(size / state.naturalW, size / state.naturalH);
+                clampPosition();
+                render();
+            }
+        };
+    }
+
+    function readImageFile(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) return reject(new Error('No file selected.'));
+            if (!file.type.startsWith('image/')) return reject(new Error('Please choose an image file.'));
+            if (file.size > 8 * 1024 * 1024) return reject(new Error('Image is too large (max 8MB).'));
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('Could not read that image.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Signup-wizard cropper wiring.
+    const regCropStage = document.getElementById('regCropStage');
+    const regCropImg = document.getElementById('regCropImg');
+    if (regCropStage && regCropImg) {
+        regCropperInstance = createCropper({
+            stage: regCropStage,
+            img: regCropImg,
+            zoomInput: document.getElementById('regCropZoom'),
+            onCrop: dataUrl => {
+                regAvatarDataUrl = dataUrl || '';
+                if (regPfpImg) {
+                    if (dataUrl) {
+                        regPfpImg.src = dataUrl;
+                        regPfpImg.hidden = false;
+                    } else {
+                        regPfpImg.hidden = true;
+                    }
+                }
+                if (regPfpFallback) regPfpFallback.hidden = Boolean(dataUrl);
+                if (regPfpRemove) regPfpRemove.hidden = !dataUrl;
+            }
+        });
+    }
+
+    regPfpFile?.addEventListener('change', async () => {
+        const file = regPfpFile.files && regPfpFile.files[0];
+        if (!file) return;
+        try {
+            const dataUrl = await readImageFile(file);
+            if (!regCropperInstance) throw new Error('Photo cropper is not ready.');
+            regCropperInstance.setImage(dataUrl);
+            if (regCropperEl) regCropperEl.hidden = false;
+            if (regError) regError.hidden = true;
+        } catch (err) {
+            regFail(err.message || 'Could not load that image.');
+        } finally {
+            regPfpFile.value = '';
+        }
+    });
+
+    document.getElementById('regCropDone')?.addEventListener('click', () => {
+        const latest = regCropperInstance ? regCropperInstance.exportCropped() : '';
+        if (latest) {
+            regAvatarDataUrl = latest;
+            if (regPfpImg) {
+                regPfpImg.src = latest;
+                regPfpImg.hidden = false;
+            }
+            if (regPfpFallback) regPfpFallback.hidden = true;
+            if (regPfpRemove) regPfpRemove.hidden = false;
+        }
+        if (regCropperEl) regCropperEl.hidden = true;
+        showToast('Photo cropped ✓');
+    });
+
+    regPfpRemove?.addEventListener('click', () => {
+        regAvatarDataUrl = '';
+        if (regCropperInstance) regCropperInstance.reset();
+        if (regCropperEl) regCropperEl.hidden = true;
+        if (regPfpImg) {
+            regPfpImg.hidden = true;
+            regPfpImg.removeAttribute('src');
+        }
+        if (regPfpFallback) regPfpFallback.hidden = false;
+        regPfpRemove.hidden = true;
+        updateRegReview();
+    });
+
+    // Edit-profile cropper wiring.
+    const editCropperStage = document.getElementById('editCropStage');
+    const editCropImg = document.getElementById('editCropImg');
+    const editCropperEl = document.getElementById('editCropper');
+    if (editCropperStage && editCropImg) {
+        editCropperInstance = createCropper({
+            stage: editCropperStage,
+            img: editCropImg,
+            zoomInput: document.getElementById('editCropZoom'),
+            onCrop: dataUrl => {
+                editAvatarDataUrl = dataUrl || '';
+                const imgEl = document.getElementById('editAvatarPreviewImg');
+                if (imgEl) {
+                    if (dataUrl) {
+                        imgEl.src = dataUrl;
+                        imgEl.hidden = false;
+                    } else {
+                        imgEl.hidden = true;
+                    }
+                }
+                if (editAvatarPreview) editAvatarPreview.hidden = Boolean(dataUrl);
+            }
+        });
+    }
+
+    editPfpFile?.addEventListener('change', async () => {
+        const file = editPfpFile.files && editPfpFile.files[0];
+        if (!file) return;
+        try {
+            const dataUrl = await readImageFile(file);
+            if (!editCropperInstance) throw new Error('Photo cropper is not ready.');
+            editCropperInstance.setImage(dataUrl);
+            if (editCropperEl) editCropperEl.hidden = false;
+            if (profileSettingsError) profileSettingsError.hidden = true;
+        } catch (err) {
+            if (profileSettingsError) {
+                profileSettingsError.textContent = err.message || 'Could not load that image.';
+                profileSettingsError.hidden = false;
+            }
+        } finally {
+            editPfpFile.value = '';
+        }
+    });
+
+    document.getElementById('editCropDone')?.addEventListener('click', () => {
+        const latest = editCropperInstance ? editCropperInstance.exportCropped() : '';
+        if (latest) {
+            editAvatarDataUrl = latest;
+            const imgEl = document.getElementById('editAvatarPreviewImg');
+            if (imgEl) {
+                imgEl.src = latest;
+                imgEl.hidden = false;
+            }
+            if (editAvatarPreview) editAvatarPreview.hidden = true;
+        }
+        if (editCropperEl) editCropperEl.hidden = true;
+        showToast('Photo cropped ✓');
+    });
+
+    editPfpRemove?.addEventListener('click', () => {
+        const imgEl = document.getElementById('editAvatarPreviewImg');
+        const hadPhoto = Boolean((imgEl && !imgEl.hidden) || editAvatarDataUrl);
+        editAvatarDataUrl = '';
+        if (editCropperInstance) editCropperInstance.reset();
+        if (editCropperEl) editCropperEl.hidden = true;
+        if (imgEl) {
+            imgEl.hidden = true;
+            imgEl.removeAttribute('src');
+        }
+        if (editAvatarPreview) editAvatarPreview.hidden = false;
+        showToast(hadPhoto ? 'Photo removed — press Save to confirm' : 'No photo to remove');
+    });
+
+    // Wizard navigation + live helpers.
+    regBack?.addEventListener('click', () => {
+        if (regStep > 1) showRegStep(regStep - 1);
+    });
+
+    regNext?.addEventListener('click', async () => {
+        if (regSubmitting) return;
+        if (regStep < 3) {
+            if (regStep === 1 && regNext) {
+                regNext.disabled = true;
+                try {
+                    await checkRegAvailability();
+                } catch (err) {}
+                regNext.disabled = false;
+            }
+            if (!validateRegStep(regStep)) return;
+            if (regError) regError.hidden = true;
+            showRegStep(regStep + 1);
+            return;
+        }
+        submitRegistration(false);
+    });
+
+    regSkipPhoto?.addEventListener('click', () => {
+        if (regSubmitting) return;
+        submitRegistration(true);
+    });
+
+    registerWizard?.addEventListener('submit', event => {
+        event.preventDefault();
+        regNext?.click();
+    });
+
+    regUsername?.addEventListener('input', () => {
+        window.clearTimeout(availabilityTimer);
+        availabilityTimer = window.setTimeout(checkRegAvailability, 400);
+        updateRegReview();
+    });
+    regDisplayName?.addEventListener('input', updateRegReview);
+    regPassword?.addEventListener('input', updatePasswordStrength);
+    regBio?.addEventListener('input', () => {
+        if (regBioCount && regBio) regBioCount.textContent = `${regBio.value.length}/160`;
     });
 
 })();

@@ -349,3 +349,112 @@ class SocialApiTests(TestCase):
 
 
 
+
+TINY_AVATAR = (
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+    "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+class SignupWizardApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="taken", password="taken-pass-123")
+        Profile.objects.create(user=self.user, display_name="Taken", handle="taken", avatar_initial="T")
+        response = self.client.get("/")
+        self.csrf = response.cookies["csrftoken"].value
+        self.headers = {"HTTP_X_CSRFTOKEN": self.csrf, "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def json_post(self, url, payload):
+        return self.client.post(url, data=json.dumps(payload), content_type="application/json", **self.headers)
+
+    def test_check_handle_reports_availability(self):
+        res = self.client.get("/api/auth/check_handle/?handle=taken")
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()["available"])
+
+        res = self.client.get("/api/auth/check_handle/?handle=@BrandNew")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["available"])
+        self.assertEqual(res.json()["handle"], "brandnew")
+
+        res = self.client.get("/api/auth/check_handle/?handle=bad%20name!")
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()["available"])
+
+    def test_registration_accepts_bio_tone_and_cropped_photo(self):
+        res = self.json_post(
+            "/api/auth/register/",
+            {
+                "display_name": "Wizard User",
+                "handle": "wizard_user",
+                "password": "wizardpass123",
+                "bio": "I signed up step by step.",
+                "avatar_tone": "gold",
+                "avatar_image": TINY_AVATAR,
+            },
+        )
+        self.assertEqual(res.status_code, 201)
+        profile = Profile.objects.get(handle="wizard_user")
+        self.assertEqual(profile.bio, "I signed up step by step.")
+        self.assertEqual(profile.avatar_tone, "gold")
+        self.assertEqual(profile.avatar_image, TINY_AVATAR)
+        data = res.json()["profile"]
+        self.assertEqual(data["avatar_image"], TINY_AVATAR)
+        self.assertEqual(data["bio"], "I signed up step by step.")
+
+    def test_registration_rejects_bad_or_huge_photos(self):
+        res = self.json_post(
+            "/api/auth/register/",
+            {"display_name": "Bad Photo", "handle": "badphoto", "password": "wizardpass123",
+             "avatar_image": "data:image/gif;base64,AAAA"},
+        )
+        self.assertEqual(res.status_code, 400)
+
+        huge = "data:image/jpeg;base64," + "A" * 700_000
+        res = self.json_post(
+            "/api/auth/register/",
+            {"display_name": "Huge Photo", "handle": "hugephoto", "password": "wizardpass123",
+             "avatar_image": huge},
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(User.objects.filter(username="hugephoto").exists())
+
+    def test_update_profile_sets_and_removes_photo_and_syncs_posts(self):
+        post = Post.objects.create(
+            author=self.user, author_name="Taken", handle="taken",
+            avatar_initial="T", avatar_tone="violet", body="Hello.",
+            published_at=timezone.now(),
+        )
+        self.client.force_login(self.user)
+
+        res = self.client.post(
+            "/api/auth/update_profile/",
+            data=json.dumps({"avatar_image": TINY_AVATAR}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["profile"]["avatar_image"], TINY_AVATAR)
+        post.refresh_from_db()
+        self.assertEqual(post.avatar_image, TINY_AVATAR)
+
+        res = self.client.post(
+            "/api/auth/update_profile/",
+            data=json.dumps({"avatar_image": ""}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["profile"]["avatar_image"], "")
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.avatar_image, "")
+
+    def test_signup_wizard_markup_is_rendered(self):
+        res = self.client.get("/")
+        self.assertContains(res, 'id="registerWizard"')
+        self.assertContains(res, 'id="regCropStage"')
+        self.assertContains(res, 'id="regCropZoom"')
+        self.assertContains(res, 'data-reg-panel="1"')
+        self.assertContains(res, 'data-reg-panel="3"')
+
+        profile_res = self.client.get("/u/taken/")
+        self.assertContains(profile_res, 'id="registerWizard"')
+        self.assertContains(profile_res, 'id="regCropStage"')

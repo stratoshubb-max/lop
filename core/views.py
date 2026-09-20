@@ -16,6 +16,38 @@ from .models import Bookmark, Follow, Post, PostLike, PostRepost, Profile, Topic
 User = get_user_model()
 AVATAR_TONES = ["violet", "lime", "sky", "copper", "rose", "blue", "mint", "gold"]
 
+# Cropped profile photos arrive as data-URLs from the in-browser cropper.
+# 600k chars ~= 450KB of binary -- plenty for a 256px square jpeg.
+AVATAR_IMAGE_MAX_CHARS = 600_000
+AVATAR_IMAGE_PREFIXES = (
+    "data:image/jpeg;base64,",
+    "data:image/png;base64,",
+    "data:image/webp;base64,",
+)
+
+
+def validate_avatar_image(value):
+    # Returns a cleaned avatar data-URL, or raises ValueError.
+    if value is None:
+        return ""
+    cleaned = str(value).strip()
+    if not cleaned:
+        return ""
+    if len(cleaned) > AVATAR_IMAGE_MAX_CHARS:
+        raise ValueError("Profile photo is too large. Please use a smaller image.")
+    if not cleaned.startswith(AVATAR_IMAGE_PREFIXES):
+        raise ValueError("Profile photo must be a cropped JPEG, PNG, or WebP image.")
+    payload = cleaned.split(",", 1)[1] if "," in cleaned else ""
+    if not payload or len(payload) < 50:
+        raise ValueError("Profile photo looks empty. Please crop it again.")
+    import base64
+
+    try:
+        base64.b64decode(payload, validate=True)
+    except Exception:
+        raise ValueError("Profile photo is corrupted. Please upload it again.")
+    return cleaned
+
 
 def arabic_number(value):
     return str(value)
@@ -75,6 +107,7 @@ def serialize_post(post, actor=None):
     handle = author_profile.handle if author_profile else post.handle
     initial = author_profile.avatar_initial if author_profile else post.avatar_initial
     tone = author_profile.avatar_tone if author_profile else post.avatar_tone
+    avatar_image = author_profile.avatar_image if author_profile else (post.avatar_image or "")
     verified = author_profile.verified if author_profile else post.verified
 
     actor_id = getattr(actor, "id", None)
@@ -126,6 +159,7 @@ def serialize_post(post, actor=None):
         "handle": handle,
         "avatar_initial": initial,
         "avatar_tone": tone,
+        "avatar_image": avatar_image or "",
         "body": post.body,
         "tags": post.tags or [],
         "published_label": post.published_label,
@@ -151,6 +185,7 @@ def serialize_profile(profile, actor=None):
         "avatar_initial": profile.avatar_initial,
         "tone": profile.avatar_tone,
         "avatar_tone": profile.avatar_tone,
+        "avatar_image": profile.avatar_image or "",
         "bio": profile.bio,
         "verified": profile.verified,
         "following": following,
@@ -387,6 +422,7 @@ def posts_api(request):
             handle=profile.handle,
             avatar_initial=profile.avatar_initial,
             avatar_tone=profile.avatar_tone,
+            avatar_image=profile.avatar_image or "",
             body=body,
             tags=tags,
             topic=topic,
@@ -446,6 +482,7 @@ def post_action_api(request, post_id, action):
                 handle=profile.handle,
                 avatar_initial=profile.avatar_initial,
                 avatar_tone=profile.avatar_tone,
+                avatar_image=profile.avatar_image or "",
                 body=body,
                 parent=post,
                 published_label="Just now",
@@ -486,6 +523,18 @@ def auth_api(request, action):
             }
         )
 
+    if action == "check_handle":
+        # Live username-availability check used by step 1 of the signup wizard.
+        handle = str(request.GET.get("handle", "")).strip().lower().lstrip("@")
+        if not handle:
+            return JsonResponse({"available": False, "handle": handle, "error": "Enter a username first."})
+        if not re.fullmatch(r"[a-z0-9_.-]{1,30}", handle):
+            return JsonResponse({"available": False, "handle": handle, "error": "Letters, numbers, _, -, . only."})
+        taken = Profile.objects.filter(handle__iexact=handle).exists() or User.objects.filter(
+            username__iexact=handle
+        ).exists()
+        return JsonResponse({"available": not taken, "handle": handle})
+
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed."}, status=405)
 
@@ -519,6 +568,8 @@ def auth_api(request, action):
         raw_display_name = str(payload.get("display_name", "")).strip()
         handle = str(payload.get("handle") or payload.get("username") or "").strip().lower().lstrip("@")
         password = str(payload.get("password", ""))
+        bio = str(payload.get("bio", "")).strip()[:160]
+        requested_tone = str(payload.get("avatar_tone", "")).strip()
 
         if not handle or not re.fullmatch(r"[a-z0-9_.-]{1,30}", handle):
             return JsonResponse({"error": "Username must be between 1 and 30 characters (letters, numbers, _, -, .)."}, status=400)
@@ -530,10 +581,15 @@ def auth_api(request, action):
         if len(password) < 8:
             return JsonResponse({"error": "Password must be at least 8 characters."}, status=400)
 
+        try:
+            avatar_image = validate_avatar_image(payload.get("avatar_image", ""))
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+
         if Profile.objects.filter(handle__iexact=handle).exists() or User.objects.filter(username__iexact=handle).exists():
             return JsonResponse({"error": "This username is already taken. Please choose another."}, status=409)
 
-        tone = AVATAR_TONES[len(handle) % len(AVATAR_TONES)]
+        tone = requested_tone if requested_tone in AVATAR_TONES else AVATAR_TONES[len(handle) % len(AVATAR_TONES)]
         initial = (display_name[:1] or handle[:1] or "A").upper()
         with transaction.atomic():
             user = User.objects.create_user(username=handle, password=password)
@@ -543,6 +599,8 @@ def auth_api(request, action):
                 handle=handle,
                 avatar_initial=initial,
                 avatar_tone=tone,
+                avatar_image=avatar_image,
+                bio=bio,
             )
         user.backend = "django.contrib.auth.backends.ModelBackend"
         login(request, user)
@@ -571,6 +629,14 @@ def auth_api(request, action):
         if avatar_tone in AVATAR_TONES:
             profile.avatar_tone = avatar_tone
 
+        if "avatar_image" in payload:
+            try:
+                profile.avatar_image = validate_avatar_image(payload.get("avatar_image", ""))
+            except ValueError as exc:
+                return JsonResponse({"error": str(exc)}, status=400)
+        elif str(payload.get("avatar_remove", "")).lower() in ("1", "true", "yes"):
+            profile.avatar_image = ""
+
         profile.bio = bio
         profile.save()
 
@@ -579,6 +645,7 @@ def auth_api(request, action):
             author_name=profile.display_name,
             avatar_tone=profile.avatar_tone,
             avatar_initial=profile.avatar_initial,
+            avatar_image=profile.avatar_image or "",
         )
 
         return JsonResponse({"ok": True, "profile": serialize_profile(profile, actor)})

@@ -11,6 +11,9 @@ class Profile(models.Model):
     handle = models.SlugField(max_length=40, unique=True)
     avatar_initial = models.CharField(max_length=3, default="أ")
     avatar_tone = models.CharField(max_length=30, default="violet")
+    # Cropped profile photo stored as a data-URL (jpeg/png/webp, small square).
+    # Kept as text so it works on SQLite and Supabase Postgres with no media bucket.
+    avatar_image = models.TextField(blank=True, default="")
     bio = models.CharField(max_length=160, blank=True)
     verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -60,6 +63,8 @@ class Post(models.Model):
     handle = models.CharField(max_length=40)
     avatar_initial = models.CharField(max_length=3, default="أ")
     avatar_tone = models.CharField(max_length=30, default="violet")
+    # Denormalized copy of the author's cropped photo at publish time.
+    avatar_image = models.TextField(blank=True, default="")
     body = models.TextField(max_length=500)
     tags = models.JSONField(default=list, blank=True)
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.SET_NULL, related_name="posts")

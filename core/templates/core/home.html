@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=20">
+    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=21">
 </head>
 <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -159,7 +159,7 @@
                     <span class="compose-privacy"><span class="privacy-dot"></span>Public</span>
                 </div>
                 <div class="compose-row">
-                    <span class="avatar avatar-large tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>
+                    {% if viewer.avatar_image %}<img class="avatar avatar-large avatar-photo" src="{{ viewer.avatar_image }}" alt="{{ viewer.display_name }}">{% else %}<span class="avatar avatar-large tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>{% endif %}
                     <div class="compose-content">
                         <label class="sr-only" for="postInput">What is on your mind?</label>
                         <textarea id="postInput" class="compose-input" maxlength="500" rows="2" placeholder="What thought do you want to leave today?"></textarea>
@@ -190,7 +190,7 @@
                 <article class="post-card" data-post-id="{{ post.id }}" data-is-owner="{{ post.is_owner|yesno:'true,false' }}" data-following="{{ post.following|yesno:'true,false' }}" data-searchable="{{ post.author_name }} {{ post.handle }} {{ post.body }}">
                     <div class="post-header">
                         <a href="/u/{{ post.handle }}/" class="post-header-link">
-                            <span class="avatar avatar-large tone-{{ post.avatar_tone }}">{{ post.avatar_initial }}</span>
+                            {% if post.avatar_image %}<img class="avatar avatar-large avatar-photo" src="{{ post.avatar_image }}" alt="{{ post.author_name }}">{% else %}<span class="avatar avatar-large tone-{{ post.avatar_tone }}">{{ post.avatar_initial }}</span>{% endif %}
                         </a>
                         <div class="post-author">
                             <div class="author-line">
@@ -243,7 +243,7 @@
                     {% if authenticated %}
                     <a href="/u/{{ viewer.handle }}/" class="profile-card-user-link">
                         <div class="profile-main">
-                            <span class="avatar avatar-profile tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>
+                            {% if viewer.avatar_image %}<img class="avatar avatar-profile avatar-photo" src="{{ viewer.avatar_image }}" alt="{{ viewer.display_name }}">{% else %}<span class="avatar avatar-profile tone-{{ viewer.avatar_tone }}">{{ viewer.avatar_initial }}</span>{% endif %}
                             <div><strong>{{ viewer.display_name }}</strong><span>@{{ viewer.handle }}</span></div>
                         </div>
                     </a>
@@ -292,36 +292,134 @@
         </section>
     </div>
 
-    <div class="auth-layer" id="authLayer" hidden>
+        <div class="auth-layer" id="authLayer" hidden>
         <div class="auth-backdrop" data-close-auth></div>
-        <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <section class="auth-panel auth-panel-steps" role="dialog" aria-modal="true" aria-labelledby="authTitle">
             <button class="auth-close" type="button" data-close-auth aria-label="Close">×</button>
             <div class="auth-symbol">✦</div>
-            <div class="auth-heading"><span class="section-label">Athar</span><h2 id="authTitle">Your space starts here.</h2><p>Join a quiet space for thoughts that deserve more time.</p></div>
+            <div class="auth-heading"><span class="section-label">Athar</span><h2 id="authTitle">Welcome back.</h2><p id="authSubtitle">Sign in to continue the conversation.</p></div>
             <div class="auth-tabs" role="tablist">
                 <button class="auth-tab is-active" type="button" data-auth-tab="login" role="tab" aria-selected="true">Sign In</button>
                 <button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">Create Account</button>
             </div>
+            <!-- LOGIN: single step -->
             <form class="auth-form" id="authForm" novalidate>
-                <div class="auth-field auth-display-field" hidden>
-                    <span>Display Name</span>
-                    <input id="authDisplayName" type="text" autocomplete="name" placeholder="e.g. Jane Doe ✦ or Alex" maxlength="50">
-                    <small class="field-hint">(can contain emojis and symbols)</small>
-                </div>
                 <div class="auth-field auth-username-field">
                     <span>Username</span>
                     <div class="auth-handle-input">
                         <b>@</b>
                         <input id="authUsername" type="text" autocomplete="username" placeholder="username" minlength="1" maxlength="30" dir="ltr" required>
                     </div>
-                    <small class="field-hint auth-username-hint" hidden>(1–30 characters, required to be unique)</small>
                 </div>
                 <div class="auth-field">
                     <span>Password</span>
-                    <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required>
+                    <div class="password-wrap">
+                        <input id="authPassword" type="password" autocomplete="current-password" placeholder="Your password" minlength="8" required>
+                        <button type="button" class="password-toggle" data-toggle-password="authPassword" aria-label="Show password">Show</button>
+                    </div>
                 </div>
                 <p class="auth-error" id="authError" role="alert" hidden></p>
                 <button class="auth-submit" id="authSubmit" type="submit">Sign In <span>↗</span></button>
+            </form>
+            <!-- REGISTER: guided in 3 steps -->
+            <form class="reg-wizard" id="registerWizard" novalidate hidden>
+                <div class="reg-progress" aria-hidden="true"><div class="reg-progress-bar" id="regProgressBar"></div></div>
+                <ol class="reg-steps" aria-label="Signup progress">
+                    <li data-reg-dot="1" class="is-current"><b>1</b><span>Account</span></li>
+                    <li data-reg-dot="2"><b>2</b><span>Password</span></li>
+                    <li data-reg-dot="3"><b>3</b><span>Photo</span></li>
+                </ol>
+                <!-- Step 1: identity -->
+                <div class="reg-panel" data-reg-panel="1">
+                    <div class="auth-field">
+                        <span>Display Name</span>
+                        <input id="regDisplayName" type="text" autocomplete="name" placeholder="e.g. Jane Doe ✦" maxlength="50">
+                        <small class="field-hint">How your name appears — emojis welcome. Leave empty to use your username.</small>
+                    </div>
+                    <div class="auth-field">
+                        <span>Username</span>
+                        <div class="auth-handle-input">
+                            <b>@</b>
+                            <input id="regUsername" type="text" autocomplete="username" placeholder="username" minlength="1" maxlength="30" dir="ltr">
+                        </div>
+                        <small class="field-hint reg-availability" id="regAvailability">1–30 characters: letters, numbers, _, -, . Must be unique.</small>
+                    </div>
+                </div>
+                <!-- Step 2: security -->
+                <div class="reg-panel" data-reg-panel="2" hidden>
+                    <div class="auth-field">
+                        <span>Password</span>
+                        <div class="password-wrap">
+                            <input id="regPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8">
+                            <button type="button" class="password-toggle" data-toggle-password="regPassword" aria-label="Show password">Show</button>
+                        </div>
+                        <div class="password-strength" id="regStrength" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                        <small class="field-hint" id="regStrengthLabel">Use 8+ characters — mix letters, numbers &amp; symbols for strength.</small>
+                    </div>
+                    <div class="auth-field">
+                        <span>Confirm Password</span>
+                        <div class="password-wrap">
+                            <input id="regPassword2" type="password" autocomplete="new-password" placeholder="Repeat your password" minlength="8">
+                            <button type="button" class="password-toggle" data-toggle-password="regPassword2" aria-label="Show password">Show</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Step 3: photo + finishing touches -->
+                <div class="reg-panel" data-reg-panel="3" hidden>
+                    <div class="pfp-block">
+                        <div class="pfp-top">
+                            <div class="pfp-preview" id="regPfpPreview">
+                                <span class="avatar avatar-profile tone-lime" id="regPfpFallback">A</span>
+                                <img class="avatar avatar-profile avatar-photo" id="regPfpImg" alt="Profile photo preview" hidden>
+                            </div>
+                            <div class="pfp-copy">
+                                <strong>Add a profile photo</strong>
+                                <span>Optional. Upload, drag to position, zoom, then crop — right here.</span>
+                                <div class="pfp-buttons">
+                                    <label class="pfp-upload" for="regPfpFile">Upload photo</label>
+                                    <input id="regPfpFile" type="file" accept="image/*" hidden>
+                                    <button type="button" class="pfp-remove" id="regPfpRemove" hidden>Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cropper" id="regCropper" hidden>
+                            <div class="cropper-stage" id="regCropStage">
+                                <img id="regCropImg" alt="" draggable="false">
+                                <div class="cropper-mask" aria-hidden="true"></div>
+                            </div>
+                            <div class="cropper-controls">
+                                <span aria-hidden="true">−</span>
+                                <input id="regCropZoom" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom photo">
+                                <span aria-hidden="true">+</span>
+                                <button type="button" class="cropper-done" id="regCropDone">Crop ✓</button>
+                            </div>
+                            <small class="field-hint">Drag the photo to reposition • slider or mouse wheel to zoom</small>
+                        </div>
+                    </div>
+                    <div class="auth-field">
+                        <div class="field-header"><span>Bio (optional)</span><span class="field-counter" id="regBioCount">0/160</span></div>
+                        <textarea id="regBio" rows="2" maxlength="160" placeholder="A quiet line about you..."></textarea>
+                    </div>
+                    <div class="auth-field">
+                        <span>Color theme (used if you skip the photo)</span>
+                        <div class="tone-swatches reg-tones" role="radiogroup" aria-label="Avatar color">
+                            {% for tone in avatar_tones %}
+                            <button type="button" class="tone-swatch tone-{{ tone }}{% if forloop.first %} is-active{% endif %}" data-reg-tone="{{ tone }}" role="radio" aria-checked="{% if forloop.first %}true{% else %}false{% endif %}" title="{{ tone|title }}"></button>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" id="regAvatarTone" value="{{ avatar_tones.0 }}">
+                    </div>
+                    <div class="reg-review">
+                        <span class="reg-review-label">You're joining as</span>
+                        <strong><span id="regReviewName">—</span> <em id="regReviewHandle">@—</em></strong>
+                    </div>
+                </div>
+                <p class="auth-error" id="regError" role="alert" hidden></p>
+                <div class="reg-nav">
+                    <button type="button" class="reg-back" id="regBack" hidden>← Back</button>
+                    <button type="button" class="auth-submit reg-next" id="regNext">Continue <span>→</span></button>
+                </div>
+                <button type="button" class="reg-skip" id="regSkipPhoto" hidden>Skip photo for now →</button>
             </form>
             <p class="auth-footnote">By continuing, you agree to Athar's community principles and privacy terms.</p>
         </section>
@@ -341,9 +439,23 @@
             </div>
             <form class="modal-body-form" id="profileSettingsForm">
                 <div class="settings-avatar-row">
-                    <span class="avatar avatar-hero tone-{{ viewer.avatar_tone }}" id="editAvatarPreview">{{ viewer.avatar_initial }}</span>
+                    <div class="pfp-preview pfp-preview-edit" id="editPfpPreview">
+                        {% if viewer.avatar_image %}
+                        <img class="avatar avatar-hero avatar-photo" id="editAvatarPreviewImg" src="{{ viewer.avatar_image }}" alt="Profile photo">
+                        <span class="avatar avatar-hero tone-{{ viewer.avatar_tone }}" id="editAvatarPreview" hidden>{{ viewer.avatar_initial }}</span>
+                        {% else %}
+                        <img class="avatar avatar-hero avatar-photo" id="editAvatarPreviewImg" alt="Profile photo preview" hidden>
+                        <span class="avatar avatar-hero tone-{{ viewer.avatar_tone }}" id="editAvatarPreview">{{ viewer.avatar_initial }}</span>
+                        {% endif %}
+                    </div>
                     <div class="tone-picker-box">
-                        <span class="field-title">Avatar Tone</span>
+                        <span class="field-title">Profile photo</span>
+                        <div class="pfp-buttons">
+                            <label class="pfp-upload" for="editPfpFile">Upload photo</label>
+                            <input id="editPfpFile" type="file" accept="image/*" hidden>
+                            <button type="button" class="pfp-remove" id="editPfpRemove">Remove</button>
+                        </div>
+                        <span class="field-title" style="margin-top:10px">Avatar Tone</span>
                         <div class="tone-swatches" role="radiogroup" aria-label="Avatar Tone">
                             {% for tone in avatar_tones %}
                             <button type="button" class="tone-swatch tone-{{ tone }}{% if viewer.avatar_tone == tone %} is-active{% endif %}" data-tone-choice="{{ tone }}" role="radio" aria-checked="{% if viewer.avatar_tone == tone %}true{% else %}false{% endif %}" title="{{ tone|title }}"></button>
@@ -351,6 +463,19 @@
                         </div>
                         <input type="hidden" id="editAvatarToneInput" value="{{ viewer.avatar_tone }}">
                     </div>
+                </div>
+                <div class="cropper" id="editCropper" hidden>
+                    <div class="cropper-stage" id="editCropStage">
+                        <img id="editCropImg" alt="" draggable="false">
+                        <div class="cropper-mask" aria-hidden="true"></div>
+                    </div>
+                    <div class="cropper-controls">
+                        <span aria-hidden="true">−</span>
+                        <input id="editCropZoom" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom photo">
+                        <span aria-hidden="true">+</span>
+                        <button type="button" class="cropper-done" id="editCropDone">Crop ✓</button>
+                    </div>
+                    <small class="field-hint">Drag the photo to reposition • slider or mouse wheel to zoom</small>
                 </div>
 
                 <div class="modal-input-field">
@@ -451,6 +576,6 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">✦</span><span id="toastMessage">Done</span></div>
-    <script src="{% static 'core/js/site.js' %}?v=20"></script>
+    <script src="{% static 'core/js/site.js' %}?v=21"></script>
 </body>
 </html>
