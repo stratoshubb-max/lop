@@ -1,46 +1,76 @@
-{% load static %}
+{% load static athar_extras %}
 <!doctype html>
 <html lang="en" dir="ltr">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#fbf9f4">
-    <meta name="csrf-token" content="{{ csrf_token_value }}">
-    <meta name="auth-status" content="{{ authenticated|yesno:'true,false' }}">
-    <title>Account Not Found — Athar</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=20">
+    {% include "core/partials/head_meta.html" %}
+    <meta name="description" content="@{{ handle }} does not exist on Athar yet.">
+    <title>@{{ handle }} — Athar</title>
 </head>
-<body>
+<body data-page="not-found">
     <div class="ambient ambient-one" aria-hidden="true"></div>
     <div class="ambient ambient-two" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
 
-    <header class="topbar">
-        <div class="topbar-inner">
-            <a class="brand" href="{% url 'core:home' %}" aria-label="Athar Home">
-                <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 32 32" fill="none"><path d="M7.5 21.6c1.8-5.9 5.9-10 11.9-11.9 1.1-.3 2.2-.6 3.3-.7-1.3 1.1-2.2 2.5-2.7 4.1-1.2 3.8-3.5 6.6-7 8.4-1.7.8-3.5 1-5.5.1Z" fill="currentColor"/><path d="M8 25.2c4.9-1.1 9.4-3.6 13.3-7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                </span>
-                <span class="brand-copy"><strong>Athar</strong><small>Your quiet space</small></span>
-            </a>
-            <div class="topbar-actions">
-                <a href="{% url 'core:home' %}" class="header-auth-link">← Feed</a>
-            </div>
-        </div>
-    </header>
+    {% include "core/partials/topbar.html" %}
+    {% include "core/partials/mobile_nav.html" %}
 
     <main class="site-main">
-        <div class="profile-not-found-card">
-            <span class="not-found-icon">🔍</span>
-            <h2>This account doesn't exist</h2>
-            <p>Try searching for another handle or voice on Athar.</p>
-            <a href="{% url 'core:home' %}" class="btn-primary">Back to Home</a>
-        </div>
+        <section class="app-shell" id="feed">
+            {% include "core/partials/left_rail.html" %}
+
+            <section class="feed-column" aria-label="Account not found">
+                <section class="not-found-card">
+                    <span class="not-found-mark">✦</span>
+                    <h1>This account doesn't exist</h1>
+                    <p>No voice is using <strong>@{{ handle }}</strong> on Athar. The handle may have changed, or it was never claimed.</p>
+                    <div class="not-found-actions">
+                        <a class="btn-primary" href="{% url 'core:home' %}">Back to the feed</a>
+                        {% if not authenticated %}
+                        <button type="button" class="btn-action-outline" data-open-auth data-auth-mode="register">Claim @{{ handle }}</button>
+                        {% endif %}
+                        <button type="button" class="btn-action-outline" id="notFoundSearch" data-query="{{ handle }}">Search for "{{ handle }}"</button>
+                    </div>
+                </section>
+
+                {% if suggested_people %}
+                <section class="people-card">
+                    <div class="rail-heading"><span class="section-label">Voices you may enjoy</span><span class="ai-chip">assistant</span></div>
+                    <div class="people-list">
+                        {% for person in suggested_people %}
+                        <div class="person-row" data-person-handle="{{ person.handle }}">
+                            <a href="/u/{{ person.handle }}/" class="person-avatar-link">
+                                <span class="avatar avatar-medium tone-{{ person.avatar_tone }}{% if person.avatar_url %} has-photo{% endif %}">
+                                    {% if person.avatar_url %}<img src="{{ person.avatar_url }}" alt="{{ person.display_name }}">{% else %}{{ person.avatar_initial }}{% endif %}
+                                </span>
+                            </a>
+                            <div class="person-copy">
+                                <a href="/u/{{ person.handle }}/"><strong>{{ person.display_name }}</strong></a>
+                                <span>@{{ person.handle }}</span>
+                                {% if person.reason %}<em>{{ person.reason }}</em>{% endif %}
+                            </div>
+                            <button class="follow-button person-follow{% if person.following %} is-following{% endif %}" type="button" data-follow-button data-handle="{{ person.handle }}" aria-pressed="{% if person.following %}true{% else %}false{% endif %}">
+                                {% if person.following %}Following{% else %}Follow{% endif %}
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            </section>
+
+            {% include "core/partials/right_rail.html" %}
+        </section>
     </main>
 
-    <script src="{% static 'core/js/site.js' %}?v=16"></script>
+    {% include "core/partials/search_layer.html" %}
+    {% include "core/partials/auth_layer.html" %}
+    {% include "core/partials/profile_settings_modal.html" %}
+    {% include "core/partials/website_settings_modal.html" %}
+    {% include "core/partials/confirm_layer.html" %}
+    {% include "core/partials/people_modal.html" %}
+    {% include "core/partials/ai_drawer.html" %}
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">✦</span><span id="toastMessage">Done</span></div>
+    <script src="{% static 'core/js/site.js' %}?v=21"></script>
 </body>
 </html>

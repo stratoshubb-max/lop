@@ -1,0 +1,63 @@
+{% load athar_extras %}
+<aside class="left-rail" aria-label="Navigation and About">
+    <div class="rail-sticky">
+        <nav class="side-nav" aria-label="Main Navigation">
+            <div class="side-nav-label">Menu</div>
+            <a class="side-nav-item{% if active_view == 'home' %} is-active{% endif %}" href="{% url 'core:home' %}" data-nav="home">
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.6"/></svg></span>
+                <span>Feed</span><b>⌘ 1</b>
+            </a>
+            <button class="side-nav-item" type="button" data-open-topics>
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                <span>Explore</span><b>⌘ 2</b>
+            </button>
+            <button class="side-nav-item" type="button" data-nav="bookmarks">
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 5.8A1.8 1.8 0 0 1 7.8 4h8.4A1.8 1.8 0 0 1 18 5.8V20l-6-3.6L6 20V5.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+                <span>Saved</span><b>⌘ 3</b>
+            </button>
+            <button class="side-nav-item" type="button" data-open-ai data-ai-action="prompts">
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.6 4.2 4.2 1.6-4.2 1.6L12 15l-1.6-4.1L6.2 9.3l4.2-1.6L12 3.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
+                <span>Assistant</span><b>⌘ 6</b>
+            </button>
+            {% if authenticated %}
+            <a class="side-nav-item{% if active_view == 'profile' and is_owner %} is-active{% endif %}" href="/u/{{ viewer.handle }}/" data-nav="profile">
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                <span>Profile</span><b>⌘ 4</b>
+            </a>
+            {% else %}
+            <button class="side-nav-item" type="button" data-open-auth data-auth-mode="login">
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                <span>Profile</span><b>⌘ 4</b>
+            </button>
+            {% endif %}
+            <button class="side-nav-item" type="button" data-open-website-settings>
+                <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>Settings</span><b>⌘ 5</b>
+            </button>
+            <div class="side-nav-divider"></div>
+            <button class="side-nav-cta" type="button" data-open-composer><span>Share a Thought</span><b>↘</b></button>
+        </nav>
+
+        {% if not authenticated %}
+        <section class="letter-card">
+            <span class="letter-glow" aria-hidden="true"></span>
+            <div class="card-eyebrow"><span class="mini-dot"></span>A Note from Athar</div>
+            <h2>Thoughts that deserve<br><em>more time.</em></h2>
+            <p>A quiet home for deliberate ideas and voices that find their own circle.</p>
+            <button type="button" class="letter-action" data-open-auth data-auth-mode="register">Join the space <span>↘</span></button>
+        </section>
+        {% else %}
+        <section class="letter-card letter-card-compact">
+            <div class="card-eyebrow"><span class="mini-dot"></span>Prompt of the day</div>
+            <p class="prompt-copy">{{ daily_prompt }}</p>
+            <button type="button" class="letter-action" data-ai-prompt="{{ daily_prompt }}">Write this <span>↘</span></button>
+        </section>
+        {% endif %}
+
+        <footer class="rail-footer">
+            <span>© {% now "Y" %} Athar</span>
+            <a href="#about" data-toast="Athar is an independent space for long-lasting ideas">About</a>
+            <a href="#rules" data-toast="We write honestly and disagree gently">Principles</a>
+        </footer>
+    </div>
+</aside>

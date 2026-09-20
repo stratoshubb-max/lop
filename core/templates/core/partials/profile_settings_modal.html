@@ -1,0 +1,84 @@
+{% if authenticated %}
+<div class="modal-layer is-hidden" id="profileSettingsModal" style="display:none;" hidden>
+    <div class="modal-backdrop" data-close-profile-settings></div>
+    <section class="modal-card profile-settings-card" role="dialog" aria-modal="true" aria-labelledby="profileSettingsTitle">
+        <div class="modal-top">
+            <button type="button" class="close-button" data-close-profile-settings aria-label="Close profile settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;pointer-events:none;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <h2 id="profileSettingsTitle">Edit Profile</h2>
+            <button type="button" class="btn-save-settings" id="btnSaveProfileSettings">Save</button>
+        </div>
+        <form class="modal-body-form" id="profileSettingsForm" novalidate>
+            <!-- Profile picture -->
+            <div class="settings-avatar-row">
+                <div class="avatar-editor" id="avatarDropZone">
+                    <span class="avatar avatar-hero tone-{{ viewer.avatar_tone }}{% if viewer.avatar_url %} has-photo{% endif %}" id="editAvatarPreview">
+                        {% if viewer.avatar_url %}<img src="{{ viewer.avatar_url }}" alt="{{ viewer.display_name }}">{% else %}{{ viewer.avatar_initial }}{% endif %}
+                    </span>
+                    <div class="avatar-editor-actions">
+                        <label class="btn-avatar-upload" for="avatarFileInput">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span id="avatarUploadLabel">Upload photo</span>
+                        </label>
+                        <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        <button type="button" class="btn-action-danger small" id="btnRemoveAvatar"{% if not viewer.avatar_url %} hidden{% endif %}>Remove photo</button>
+                        <small class="field-hint">Drag &amp; drop or choose a file · square crop, max 4&nbsp;MB</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tone-picker-box">
+                <span class="field-title">Fallback avatar tone</span>
+                <div class="tone-swatches" role="radiogroup" aria-label="Avatar tone">
+                    {% for tone in avatar_tones %}
+                    <button type="button" class="tone-swatch tone-{{ tone }}{% if viewer.avatar_tone == tone %} is-active{% endif %}" data-tone-choice="{{ tone }}" role="radio" aria-checked="{% if viewer.avatar_tone == tone %}true{% else %}false{% endif %}" title="{{ tone|title }}"></button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" id="editAvatarToneInput" value="{{ viewer.avatar_tone }}">
+            </div>
+
+            <div class="modal-input-field">
+                <div class="field-header">
+                    <label for="editDisplayNameInput">Display Name</label>
+                    <span class="field-counter" id="displayNameCount">0/50</span>
+                </div>
+                <input type="text" id="editDisplayNameInput" maxlength="50" value="{{ viewer.display_name }}" placeholder="Your name or alias">
+                <small class="field-hint">(can contain emojis and symbols, max 50 chars)</small>
+            </div>
+
+            <div class="modal-input-field">
+                <div class="field-header">
+                    <label for="editHandleInput">Username</label>
+                    <span class="field-counter">@{{ viewer.handle }}</span>
+                </div>
+                <input type="text" id="editHandleInput" maxlength="30" value="{{ viewer.handle }}" dir="ltr" placeholder="username">
+                <small class="field-hint">Changing your username also updates every thought you shared</small>
+            </div>
+
+            <div class="modal-input-field">
+                <div class="field-header">
+                    <label for="editBioInput">Bio</label>
+                    <span class="field-counter" id="bioCount">0/160</span>
+                </div>
+                <textarea id="editBioInput" rows="3" maxlength="160" placeholder="Tell others what you think about…">{{ viewer.bio }}</textarea>
+                <small class="field-hint">A quiet note about what you share</small>
+            </div>
+
+            <div class="modal-grid-two">
+                <div class="modal-input-field">
+                    <label for="editLocationInput">Location <em>(optional)</em></label>
+                    <input type="text" id="editLocationInput" maxlength="80" value="{{ viewer.location }}" placeholder="City or region">
+                </div>
+                <div class="modal-input-field">
+                    <label for="editWebsiteInput">Website <em>(optional)</em></label>
+                    <input type="text" id="editWebsiteInput" maxlength="160" value="{{ viewer.website }}" placeholder="yoursite.com">
+                </div>
+            </div>
+
+            <p class="modal-error-msg" id="profileSettingsError" hidden></p>
+            <p class="modal-success-msg" id="profileSettingsSuccess" hidden></p>
+        </form>
+    </section>
+</div>
+{% endif %}

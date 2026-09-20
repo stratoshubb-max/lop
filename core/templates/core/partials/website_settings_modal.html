@@ -1,0 +1,107 @@
+<div class="modal-layer is-hidden" id="websiteSettingsModal" style="display:none;" hidden>
+    <div class="modal-backdrop" data-close-website-settings></div>
+    <section class="modal-card website-settings-card" role="dialog" aria-modal="true" aria-labelledby="websiteSettingsTitle">
+        <div class="modal-top">
+            <button type="button" class="close-button" data-close-website-settings aria-label="Close settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;pointer-events:none;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <h2 id="websiteSettingsTitle">Settings</h2>
+            <button type="button" class="btn-save-settings" data-close-website-settings>Done</button>
+        </div>
+        <div class="settings-scroll-content">
+            <div class="settings-group">
+                <h3 class="settings-group-title">Theme &amp; Ambiance</h3>
+                <div class="theme-cards-grid">
+                    <button type="button" class="theme-card" data-set-theme="dark">
+                        <span class="theme-badge">🌙</span>
+                        <strong>Dark Obsidian</strong>
+                        <small>Quiet, focused dark space</small>
+                    </button>
+                    <button type="button" class="theme-card" data-set-theme="light">
+                        <span class="theme-badge">📜</span>
+                        <strong>Warm Paper</strong>
+                        <small>Editorial parchment daylight</small>
+                    </button>
+                    <button type="button" class="theme-card" data-set-theme="auto">
+                        <span class="theme-badge">💻</span>
+                        <strong>System Default</strong>
+                        <small>Syncs with your OS setting</small>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3 class="settings-group-title">Reading &amp; Motion</h3>
+                <label class="toggle-option">
+                    <div>
+                        <strong>Calm Animations</strong>
+                        <small>Turn off particle glows and reduce motion</small>
+                    </div>
+                    <input type="checkbox" id="toggleReducedMotion">
+                </label>
+                <label class="toggle-option">
+                    <div>
+                        <strong>Compact Density</strong>
+                        <small>Tighter spacing for thoughts and lists</small>
+                    </div>
+                    <input type="checkbox" id="toggleCompactDensity">
+                </label>
+            </div>
+
+            <div class="settings-group">
+                <h3 class="settings-group-title">Athar Assistant</h3>
+                <div class="account-summary-box">
+                    <div class="summary-line"><span>Engine</span><strong>{{ ai_provider.provider }}</strong></div>
+                    <div class="summary-line"><span>Model</span><strong>{{ ai_provider.model }}</strong></div>
+                    <div class="summary-line"><span>Image pipeline</span><strong>{% if ai_provider.local_engine %}Server-side{% endif %}</strong></div>
+                </div>
+                <label class="toggle-option">
+                    <div>
+                        <strong>Inline reply ideas</strong>
+                        <small>Offer assistant-written reply chips inside conversations</small>
+                    </div>
+                    <input type="checkbox" id="toggleAiReplies">
+                </label>
+                <label class="toggle-option">
+                    <div>
+                        <strong>Auto tag suggestions</strong>
+                        <small>Suggest hashtags when a draft is ready</small>
+                    </div>
+                    <input type="checkbox" id="toggleAiTags">
+                </label>
+            </div>
+
+            {% if authenticated %}
+            <div class="settings-group">
+                <h3 class="settings-group-title">Account Info</h3>
+                <div class="account-summary-box">
+                    <div class="summary-line"><span>Handle</span><strong>@{{ viewer.handle }}</strong></div>
+                    <div class="summary-line"><span>Display Name</span><strong>{{ viewer.display_name }}</strong></div>
+                    <div class="summary-line"><span>Joined</span><span>{{ viewer.created_at|date:"F Y" }}</span></div>
+                    <div class="summary-line"><span>Profile picture</span><span>{% if viewer.avatar_url %}Custom photo{% else %}Initial fallback{% endif %}</span></div>
+                </div>
+                <div class="account-quick-buttons">
+                    <button type="button" class="btn-action-outline" data-open-profile-settings>Edit Profile Info</button>
+                    <a class="btn-action-outline" href="/u/{{ viewer.handle }}/">View Profile</a>
+                </div>
+                <details class="settings-details">
+                    <summary>Change password</summary>
+                    <div class="password-form">
+                        <input type="password" id="currentPasswordInput" autocomplete="current-password" placeholder="Current password">
+                        <input type="password" id="newPasswordInput" autocomplete="new-password" placeholder="New password (8+ characters)">
+                        <button type="button" class="btn-primary" id="btnChangePassword">Update password</button>
+                        <p class="settings-inline-note" id="passwordNote" hidden></p>
+                    </div>
+                </details>
+                <div class="account-quick-buttons">
+                    <button type="button" class="btn-action-danger" data-logout>Sign Out</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="settings-close-bottom">
+                <button type="button" class="btn-primary" data-close-website-settings style="width:100%;margin-top:10px;padding:11px 0;border:0;cursor:pointer;">Done</button>
+            </div>
+        </div>
+    </section>
+</div>

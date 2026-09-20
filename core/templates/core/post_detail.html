@@ -1,0 +1,85 @@
+{% load static athar_extras %}
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+    {% include "core/partials/head_meta.html" %}
+    <meta name="description" content="{{ thread_meta.description }}">
+    <title>{{ thread_meta.title }} — Athar</title>
+</head>
+<body data-page="thread" data-post-id="{{ post.id }}">
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    {% include "core/partials/topbar.html" %}
+    {% include "core/partials/mobile_nav.html" %}
+
+    <main class="site-main">
+        <section class="app-shell" id="feed">
+            {% include "core/partials/left_rail.html" %}
+
+            <section class="feed-column thread-column" aria-label="Thought thread">
+                <div class="profile-top-bar">
+                    <a href="{% url 'core:home' %}" class="profile-back-btn" aria-label="Back to feed">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m7 7-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                    <div class="profile-top-info">
+                        <h1 class="profile-top-name">Thread</h1>
+                        <span class="profile-top-count">{{ post.replies }} repl{{ post.replies|pluralize:"y,ies" }}</span>
+                    </div>
+                    <button type="button" class="mini-link" data-ai-thread-summary>Summarise thread</button>
+                </div>
+
+                <div class="thread-summary" id="threadSummary" hidden></div>
+
+                {% if parent_post %}
+                <div class="thread-parent">
+                    <span class="thread-parent-label">Replying to @{{ parent_post.handle }}</span>
+                    {% include "core/partials/post_card.html" with post=parent_post %}
+                </div>
+                {% endif %}
+
+                <div class="feed-list thread-list" id="feedList" data-offset="{{ replies|length }}" data-post-id="{{ post.id }}">
+                    {% include "core/partials/post_card.html" with post=post thread_mode=True %}
+                    <div class="thread-divider"><span>Replies</span><i></i></div>
+                    <div class="thread-replies" id="threadReplies">
+                        {% for reply in replies %}
+                            {% include "core/partials/post_card.html" with post=reply thread_mode=True %}
+                        {% empty %}
+                            <div class="empty-state">No replies yet. Start the conversation gently.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if related %}
+                <section class="related-card">
+                    <div class="rail-heading"><span class="section-label">Related thoughts</span><span class="ai-chip">assistant</span></div>
+                    <div class="related-list">
+                        {% for item in related %}
+                        <a class="related-row" href="{{ item.permalink }}">
+                            <strong>@{{ item.handle }}</strong>
+                            <p>{{ item.excerpt }}</p>
+                            <span>{{ item.published_label }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            </section>
+
+            {% include "core/partials/right_rail.html" %}
+        </section>
+    </main>
+
+    {% include "core/partials/search_layer.html" %}
+    {% include "core/partials/auth_layer.html" %}
+    {% include "core/partials/profile_settings_modal.html" %}
+    {% include "core/partials/website_settings_modal.html" %}
+    {% include "core/partials/confirm_layer.html" %}
+    {% include "core/partials/people_modal.html" %}
+    {% include "core/partials/ai_drawer.html" %}
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-mark">✦</span><span id="toastMessage">Done</span></div>
+    <script src="{% static 'core/js/site.js' %}?v=21"></script>
+</body>
+</html>
