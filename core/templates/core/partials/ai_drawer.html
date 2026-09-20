@@ -1,0 +1,39 @@
+<div class="ai-layer" id="aiLayer" hidden>
+    <div class="ai-backdrop" data-close-ai></div>
+    <aside class="ai-drawer" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+        <header class="ai-drawer-head">
+            <div>
+                <span class="section-label">Athar Assistant</span>
+                <h2 id="aiTitle">Your thinking partner</h2>
+                <p class="ai-drawer-sub">Runs on the Athar engine — <span id="aiProviderLabel">{{ ai_provider.provider }}</span></p>
+            </div>
+            <button class="close-button" type="button" data-close-ai aria-label="Close assistant">×</button>
+        </header>
+
+        <div class="ai-chips" id="aiChips" role="tablist" aria-label="Assistant actions">
+            <button type="button" class="ai-chip-button is-active" data-ai-action="coach">Read my draft</button>
+            <button type="button" class="ai-chip-button" data-ai-action="improve">Rewrite</button>
+            <button type="button" class="ai-chip-button" data-ai-action="hashtags">Tags</button>
+            <button type="button" class="ai-chip-button" data-ai-action="tone">Tone</button>
+            <button type="button" class="ai-chip-button" data-ai-action="shorten">Shorten</button>
+            <button type="button" class="ai-chip-button" data-ai-action="expand">Develop</button>
+            <button type="button" class="ai-chip-button" data-ai-action="reply">Reply ideas</button>
+            <button type="button" class="ai-chip-button" data-ai-action="prompts">Prompts</button>
+        </div>
+
+        <div class="ai-context" id="aiContext" hidden></div>
+        <div class="ai-stream" id="aiStream">
+            <div class="ai-empty">
+                <span class="ai-orb" aria-hidden="true">✦</span>
+                <p>Write a few words in the composer, then ask for a read-out. Everything here is generated from your text — no data leaves this server unless you configure a hosted model.</p>
+            </div>
+        </div>
+        <footer class="ai-drawer-foot">
+            <label class="ai-foot-toggle">
+                <input type="checkbox" id="aiFeedContext">
+                <span>Use recent feed thoughts as context</span>
+            </label>
+            <button type="button" class="btn-primary" id="aiInsertButton" hidden>Insert into composer</button>
+        </footer>
+    </aside>
+</div>

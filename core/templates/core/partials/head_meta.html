@@ -1,0 +1,13 @@
+{% load static %}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d0e12">
+<meta name="csrf-token" content="{{ csrf_token_value }}">
+<meta name="auth-status" content="{{ authenticated|yesno:'true,false' }}">
+<meta name="ai-provider" content="{{ ai_provider.provider }}">
+<meta name="max-post-length" content="{{ max_post_length|default:500 }}">
+{% if viewer %}<meta name="viewer-handle" content="{{ viewer.handle }}">{% endif %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=21">

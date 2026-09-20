@@ -1,0 +1,46 @@
+<div class="auth-layer" id="authLayer" hidden>
+    <div class="auth-backdrop" data-close-auth></div>
+    <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <button class="auth-close" type="button" data-close-auth aria-label="Close">×</button>
+        <div class="auth-symbol">✦</div>
+        <div class="auth-heading"><span class="section-label">Athar</span><h2 id="authTitle">Your space starts here.</h2><p>Join a quiet space for thoughts that deserve more time.</p></div>
+        <div class="auth-tabs" role="tablist">
+            <button class="auth-tab is-active" type="button" data-auth-tab="login" role="tab" aria-selected="true">Sign In</button>
+            <button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">Create Account</button>
+        </div>
+        <form class="auth-form" id="authForm" novalidate>
+            <div class="auth-field auth-display-field" hidden>
+                <span>Display Name</span>
+                <input id="authDisplayName" type="text" autocomplete="name" placeholder="e.g. Jane Doe ✦ or Alex" maxlength="50">
+                <small class="field-hint">(can contain emojis and symbols)</small>
+            </div>
+            <div class="auth-field auth-username-field">
+                <span>Username</span>
+                <div class="auth-handle-input">
+                    <b>@</b>
+                    <input id="authUsername" type="text" autocomplete="username" placeholder="username" minlength="1" maxlength="30" dir="ltr" required>
+                </div>
+                <small class="field-hint auth-username-hint" hidden>(1–30 characters, required to be unique)</small>
+            </div>
+            <div class="auth-field">
+                <span>Password</span>
+                <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required>
+            </div>
+            <div class="auth-field auth-avatar-field" hidden>
+                <span>Profile picture <em>(optional)</em></span>
+                <div class="auth-avatar-row">
+                    <span class="avatar avatar-profile tone-violet" id="authAvatarPreview">A</span>
+                    <div class="auth-avatar-actions">
+                        <label class="btn-action-outline" for="authAvatarInput">Choose photo</label>
+                        <input id="authAvatarInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        <button type="button" class="mini-link" id="authAvatarClear" hidden>Remove</button>
+                        <small class="field-hint">PNG, JPEG, WEBP or GIF · square crop applied</small>
+                    </div>
+                </div>
+            </div>
+            <p class="auth-error" id="authError" role="alert" hidden></p>
+            <button class="auth-submit" id="authSubmit" type="submit">Sign In <span>↗</span></button>
+        </form>
+        <p class="auth-footnote">By continuing, you agree to Athar's community principles and privacy terms.</p>
+    </section>
+</div>

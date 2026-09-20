@@ -1,0 +1,11 @@
+<nav class="mobile-nav" aria-label="Quick Navigation">
+    <a class="mobile-nav-item{% if active_view == 'home' %} is-active{% endif %}" href="{% url 'core:home' %}" data-nav="home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.6"/></svg><span>Feed</span></a>
+    <button class="mobile-nav-item" type="button" data-open-topics><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Explore</span></button>
+    <button class="mobile-nav-compose" type="button" data-open-composer aria-label="Share a new thought">+</button>
+    <button class="mobile-nav-item" type="button" data-nav="bookmarks"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 5.8A1.8 1.8 0 0 1 7.8 4h8.4A1.8 1.8 0 0 1 18 5.8V20l-6-3.6L6 20V5.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Saved</span></button>
+    {% if authenticated %}
+    <a class="mobile-nav-item{% if active_view == 'profile' and is_owner %} is-active{% endif %}" href="/u/{{ viewer.handle }}/" data-nav="profile"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Profile</span></a>
+    {% else %}
+    <button class="mobile-nav-item" type="button" data-open-auth data-auth-mode="login"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Profile</span></button>
+    {% endif %}
+</nav>

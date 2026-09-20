@@ -1,0 +1,31 @@
+<div class="modal-layer is-hidden" id="peopleModal" style="display:none;" hidden>
+    <div class="modal-backdrop" data-close-people></div>
+    <section class="modal-card people-card-modal" role="dialog" aria-modal="true" aria-labelledby="peopleModalTitle">
+        <div class="modal-top">
+            <button type="button" class="close-button" data-close-people aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;pointer-events:none;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <h2 id="peopleModalTitle">People</h2>
+            <span class="people-modal-count" id="peopleModalCount"></span>
+        </div>
+        <div class="people-modal-body" id="peopleModalBody">
+            <div class="empty-state">Loading…</div>
+        </div>
+    </section>
+</div>
+
+<div class="modal-layer is-hidden" id="topicsModal" style="display:none;" hidden>
+    <div class="modal-backdrop" data-close-topics></div>
+    <section class="modal-card topics-card-modal" role="dialog" aria-modal="true" aria-labelledby="topicsModalTitle">
+        <div class="modal-top">
+            <button type="button" class="close-button" data-close-topics aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;pointer-events:none;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <h2 id="topicsModalTitle">Explore topics</h2>
+            <button type="button" class="mini-link" id="refreshTopicsButton">Refresh</button>
+        </div>
+        <div class="topics-modal-body" id="topicsModalBody">
+            <div class="empty-state">Loading…</div>
+        </div>
+    </section>
+</div>

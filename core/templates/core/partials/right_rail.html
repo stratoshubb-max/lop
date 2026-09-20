@@ -1,0 +1,93 @@
+{% load athar_extras %}
+<aside class="right-rail" aria-label="Profile and Discover" id="discover">
+    <div class="rail-sticky">
+        <section class="profile-card{% if not authenticated %} profile-card-guest{% endif %}">
+            <div class="profile-card-top">
+                <span class="section-label">Your Space</span>
+                {% if authenticated %}
+                <button class="mini-menu" type="button" data-open-profile-settings aria-label="Edit profile"><svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                {% endif %}
+            </div>
+            {% if authenticated %}
+            <a href="/u/{{ viewer.handle }}/" class="profile-card-user-link">
+                <div class="profile-main">
+                    <span class="avatar avatar-profile tone-{{ viewer.avatar_tone }}{% if viewer.avatar_url %} has-photo{% endif %}" data-viewer-avatar>
+                        {% if viewer.avatar_url %}<img src="{{ viewer.avatar_url }}" alt="{{ viewer.display_name }}">{% else %}{{ viewer.avatar_initial }}{% endif %}
+                    </span>
+                    <div><strong data-viewer-name>{{ viewer.display_name }}</strong><span data-viewer-handle>@{{ viewer.handle }}</span></div>
+                </div>
+            </a>
+            <p class="profile-bio" data-viewer-bio>{{ viewer.bio|default:'Collecting thoughts that make days wider.' }}</p>
+            <div class="profile-stats"><span><b data-viewer-posts>{{ viewer_stats.posts }}</b> thoughts</span><span><b data-viewer-followers>{{ viewer_stats.followers }}</b> followers</span><span><b data-viewer-following>{{ viewer_stats.following }}</b> following</span></div>
+            <button class="profile-action" type="button" data-open-composer>New Thought <span>↗</span></button>
+            {% else %}
+            <div class="guest-profile-copy"><span class="avatar avatar-profile tone-lime">A</span><strong>Your space begins with an account.</strong><p>Sign in to build your circles and save what matters.</p><button type="button" class="profile-action" data-open-auth data-auth-mode="register">Create Free Account <span>↗</span></button></div>
+            {% endif %}
+        </section>
+
+        <section class="ai-card">
+            <div class="rail-heading">
+                <span class="section-label">Athar Assistant</span>
+                <span class="ai-chip">{{ ai_provider.provider }}</span>
+            </div>
+            <p class="ai-card-copy">Read the mood of today's feed, get reply ideas, or sharpen a draft before you share it.</p>
+            <div class="ai-card-actions">
+                <button type="button" class="btn-ai" data-ai-digest>Summarise today's feed</button>
+                <button type="button" class="btn-ai ghost" data-open-ai data-ai-action="prompts">Writing prompts</button>
+            </div>
+            <div class="ai-digest" id="aiDigest" hidden></div>
+        </section>
+
+        {% if suggested_people %}
+        <section class="people-card">
+            <div class="rail-heading">
+                <span class="section-label">Voices to follow</span>
+                <button type="button" class="mini-link" data-open-people-suggestions>Refresh</button>
+            </div>
+            <div class="people-list" id="suggestedPeopleList">
+                {% for person in suggested_people %}
+                <div class="person-row" data-person-handle="{{ person.handle }}">
+                    <a href="/u/{{ person.handle }}/" class="person-avatar-link">
+                        <span class="avatar avatar-medium tone-{{ person.avatar_tone }}{% if person.avatar_url %} has-photo{% endif %}">
+                            {% if person.avatar_url %}<img src="{{ person.avatar_url }}" alt="{{ person.display_name }}">{% else %}{{ person.avatar_initial }}{% endif %}
+                        </span>
+                    </a>
+                    <div class="person-copy">
+                        <a href="/u/{{ person.handle }}/"><strong>{{ person.display_name }}</strong></a>
+                        <span>@{{ person.handle }}</span>
+                        {% if person.reason %}<em>{{ person.reason }}</em>{% endif %}
+                    </div>
+                    <button class="follow-button person-follow{% if person.following %} is-following{% endif %}" type="button" data-follow-button data-handle="{{ person.handle }}" aria-pressed="{% if person.following %}true{% else %}false{% endif %}">
+                        {% if person.following %}Following{% else %}Follow{% endif %}
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="topics-card">
+            <div class="rail-heading">
+                <span class="section-label">What's Moving</span>
+                <span class="topics-pulse"><i></i> Live</span>
+            </div>
+            <div class="topic-list" id="topicList">
+                {% for topic in topics %}
+                <button class="topic-row" type="button" data-topic="{{ topic.name }}">
+                    <span class="topic-rank">{{ topic.rank }}</span>
+                    <span class="topic-copy"><small>{{ topic.category }}</small><strong>{{ topic.name }}</strong><em>{{ topic.meta }}</em></span>
+                    <span class="topic-arrow">↗</span>
+                </button>
+                {% empty %}
+                <p class="side-empty">Topics will appear as thoughts are published.</p>
+                {% endfor %}
+            </div>
+            <button class="see-topics" type="button" data-open-topics>All Topics <span>→</span></button>
+        </section>
+
+        <section class="quiet-note">
+            <span class="quiet-icon">✦</span>
+            <div><strong>Take your time.</strong><span>Nothing here is in a rush.</span></div>
+        </section>
+    </div>
+</aside>

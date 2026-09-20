@@ -1,0 +1,80 @@
+{% load athar_extras %}
+<section class="compose-card" id="composeCard">
+    {% if authenticated %}
+    <div class="compose-heading">
+        <span class="section-label" id="composerLabel">In your voice</span>
+        <div class="compose-heading-right">
+            <span class="compose-context" id="composerContext" hidden></span>
+            <span class="compose-privacy"><span class="privacy-dot"></span>Public</span>
+        </div>
+    </div>
+    <div class="compose-row">
+        <span class="avatar avatar-large tone-{{ viewer.avatar_tone }}{% if viewer.avatar_url %} has-photo{% endif %}" data-viewer-avatar>
+            {% if viewer.avatar_url %}<img src="{{ viewer.avatar_url }}" alt="{{ viewer.display_name }}">{% else %}{{ viewer.avatar_initial }}{% endif %}
+        </span>
+        <div class="compose-content">
+            <label class="sr-only" for="postInput">What is on your mind?</label>
+            <textarea id="postInput" class="compose-input" maxlength="500" rows="2" placeholder="What thought do you want to leave today?"></textarea>
+
+            <div class="compose-image-preview" id="composeImagePreview" hidden>
+                <img id="composeImageThumb" alt="Attachment preview">
+                <div class="compose-image-copy">
+                    <strong id="composeImageName">attachment</strong>
+                    <span id="composeImageMeta"></span>
+                </div>
+                <button type="button" class="compose-image-remove" data-remove-compose-image aria-label="Remove attachment">×</button>
+            </div>
+
+            <div class="ai-suggest-inline" id="aiInlineSuggest" hidden></div>
+
+            <div class="compose-footer">
+                <div class="compose-tools" aria-label="Post tools">
+                    <label class="tool-button" title="Add a photo (PNG, JPEG, WEBP or GIF)">
+                        <input type="file" id="composeImageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="m5 17 4.5-4 3.5 3 2.3-2.1L20 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </label>
+                    <button type="button" class="tool-button" data-toggle-emoji aria-label="Add a feeling" title="Add a feeling">
+                        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 14.5c.9 1.1 2 1.6 3.5 1.6s2.6-.5 3.5-1.6M9 9.5h.01M15 9.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </button>
+                    <button type="button" class="tool-button" data-insert-link aria-label="Add a link" title="Add a link">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M10 13.8a3.7 3.7 0 0 0 5.4.3l2-2a3.7 3.7 0 0 0-5.2-5.2l-1.1 1.1M14 10.2a3.7 3.7 0 0 0-5.4-.3l-2 2a3.7 3.7 0 0 0 5.2 5.2l1.1-1.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </button>
+                    <button type="button" class="tool-button tool-ai" data-open-ai data-ai-action="coach" aria-label="Athar assistant" title="Athar assistant">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5l1.6 4.2 4.2 1.6-4.2 1.6L12 15l-1.6-4.1L6.2 9.3l4.2-1.6L12 3.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                        <span class="tool-ai-label">Assist</span>
+                    </button>
+                </div>
+                <div class="publish-actions">
+                    <span class="char-count" id="charCount">0/500</span>
+                    <button class="publish-button" id="publishButton" type="button" disabled>Share Thought</button>
+                </div>
+            </div>
+
+            <div class="emoji-picker" id="emojiPicker" hidden>
+                <button type="button" class="emoji-option">✦</button>
+                <button type="button" class="emoji-option">🌿</button>
+                <button type="button" class="emoji-option">🌙</button>
+                <button type="button" class="emoji-option">☕</button>
+                <button type="button" class="emoji-option">📚</button>
+                <button type="button" class="emoji-option">💡</button>
+                <button type="button" class="emoji-option">🕊️</button>
+                <button type="button" class="emoji-option">🌊</button>
+                <button type="button" class="emoji-option">🔥</button>
+                <button type="button" class="emoji-option">🎧</button>
+                <button type="button" class="emoji-option">🧭</button>
+                <button type="button" class="emoji-option">🪴</button>
+                <button type="button" class="emoji-option">🖋️</button>
+                <button type="button" class="emoji-option">🌅</button>
+                <button type="button" class="emoji-option">🤝</button>
+                <button type="button" class="emoji-option">✨</button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="auth-gate">
+        <span class="auth-gate-icon">✦</span>
+        <div><strong>Your voice belongs here.</strong><span>Create a free account to share thoughts, add a photo and connect with others.</span></div>
+        <button type="button" class="auth-gate-button" data-open-auth data-auth-mode="register">Join Now <span>↘</span></button>
+    </div>
+    {% endif %}
+</section>
