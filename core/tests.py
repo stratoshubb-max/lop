@@ -1,12 +1,16 @@
 import base64
 import json
 import pathlib
+import re
 import struct
 import zlib
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 from django.utils import timezone
+
+from . import views
 
 from . import ai, media
 from .models import Bookmark, Follow, Post, PostLike, PostRepost, Profile, Topic
@@ -847,3 +851,71 @@ class FrontendContractTests(TestCase):
         for hook in ('data-action="like"', 'data-action="repost"', 'data-action="bookmark"',
                      'data-post-menu', 'data-action="reply"'):
             self.assertIn(hook, html, f"{hook} is required by site.js")
+
+
+class AssistantBudgetTests(TestCase):
+    """A hosted model costs money, so anonymous traffic is bounded."""
+
+    def setUp(self):
+        cache.clear()
+        self.tight = override_settings()
+        self.tight.enable()
+        self.original_limits = views.AI_RATE_LIMIT
+        views.AI_RATE_LIMIT = {"anonymous": (3, 600), "member": (4, 600)}
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        views.AI_RATE_LIMIT = self.original_limits
+        self.tight.disable()
+        cache.clear()
+
+    def test_anonymous_callers_are_cut_off_after_their_budget(self):
+        for index in range(3):
+            res = self.client.post("/api/ai/prompts/", data="{}", content_type="application/json")
+            self.assertEqual(res.status_code, 200, f"request {index + 1} should pass")
+
+        blocked = self.client.post("/api/ai/prompts/", data="{}", content_type="application/json")
+        self.assertEqual(blocked.status_code, 429)
+        self.assertTrue(blocked.json()["retry_after"])
+        self.assertEqual(blocked["Retry-After"], "600")
+
+    def test_members_get_a_larger_but_finite_budget(self):
+        user = User.objects.create_user(username="thrifty", password="thrifty-pass-123")
+        Profile.objects.create(user=user, display_name="Thrifty", handle="thrifty", avatar_initial="T")
+        self.client.login(username="thrifty", password="thrifty-pass-123")
+        response = self.client.get("/")
+        csrf = response.cookies["csrftoken"].value
+        headers = {"HTTP_X_CSRFTOKEN": csrf, "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+        for index in range(4):
+            res = self.client.post("/api/ai/prompts/", data="{}", content_type="application/json", **headers)
+            self.assertEqual(res.status_code, 200, f"member request {index + 1} should pass")
+        blocked = self.client.post("/api/ai/prompts/", data="{}", content_type="application/json", **headers)
+        self.assertEqual(blocked.status_code, 429)
+
+    def test_feed_widgets_are_not_budgeted(self):
+        for _ in range(6):
+            res = self.client.get("/api/ai/digest/")
+            self.assertEqual(res.status_code, 200)
+
+
+class SupabaseSchemaTests(TestCase):
+    """The published Postgres DDL must keep pace with the models."""
+
+    def schema_columns(self, table):
+        sql = (pathlib.Path(__file__).parent.parent / "supabase_schema.sql").read_text()
+        match = re.search(rf'CREATE TABLE "{table}" \((.*?)\);\n', sql, re.S)
+        self.assertIsNotNone(match, f"{table} is missing from supabase_schema.sql")
+        return set(re.findall(r'"([a-z_]+)"\s+(?:bigint|integer|varchar|text|boolean|timestamp|jsonb|bytea|smallint)', match.group(1)))
+
+    def test_schema_matches_the_models(self):
+        for model in (Profile, Post):
+            expected = {field.column for field in model._meta.concrete_fields}
+            actual = self.schema_columns(model._meta.db_table)
+            self.assertEqual(expected - actual, set(), f"{model.__name__} columns missing from the schema")
+            self.assertEqual(actual - expected, set(), f"{model.__name__} has unknown columns in the schema")
+
+    def test_media_columns_are_bytea(self):
+        sql = (pathlib.Path(__file__).parent.parent / "supabase_schema.sql").read_text()
+        self.assertIn('"avatar_blob" bytea NULL', sql)
+        self.assertIn('"image_blob" bytea NULL', sql)

@@ -5,6 +5,7 @@ import re
 from functools import wraps
 
 from django.conf import settings as django_settings
+from django.core.cache import cache
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.db import models, transaction
 from django.db.models import Count, Exists, OuterRef, Q
@@ -1105,9 +1106,37 @@ def profile_posts_api(request, handle):
 # AI API
 # --------------------------------------------------------------------------- #
 
+# The assistant is free and offline by default, but a configured hosted model
+# costs money, so anonymous traffic is kept on a short leash.
+AI_RATE_LIMIT = {"anonymous": (60, 600), "member": (300, 600)}   # requests, seconds
+
+
+def ai_rate_limited(request, action: str) -> int:
+    """Return seconds to wait when the caller is over their assistant budget."""
+    limit, window = AI_RATE_LIMIT["member" if current_user(request) else "anonymous"]
+    identity = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "local")
+    actor = current_user(request)
+    scope = f"u{actor.pk}" if actor else f"ip{identity}"
+    key = f"athar:ai:{scope}"
+    used = cache.get(key, 0)
+    if used >= limit:
+        return window
+    cache.set(key, used + 1, window)
+    return 0
+
+
 @api_endpoint
 @require_http_methods(["GET", "POST"])
 def ai_api(request, action):
+    if action not in {"digest", "topics"}:
+        wait = ai_rate_limited(request, action)
+        if wait:
+            response = JsonResponse({
+                "error": "The assistant is taking a short break — try again in a minute.",
+                "retry_after": wait,
+            }, status=429)
+            response.headers["Retry-After"] = str(wait)
+            return response
     payload, _ = read_payload(request)
     text = str(payload.get("text") or request.GET.get("text") or "").strip()
     post_id = payload.get("post_id") or request.GET.get("post_id")

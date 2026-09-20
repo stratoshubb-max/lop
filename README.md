@@ -62,6 +62,11 @@ The project supports direct connection to managed Supabase PostgreSQL databases 
   digests, related thoughts and live in-composer help (score, tone, tags and a
   Tab-completion line). It runs fully offline on a deterministic NLP engine, and
   upgrades to any OpenAI-compatible model when `AI_API_KEY` is set.
+- **Drafts that wait for you**: an unfinished thought is kept locally and
+  restored (with a fresh analysis) if the page reloads before you publish.
+- **Keyboard-first**: `/` searches, `n` starts a new thought, `d` opens the
+  digest, `⌘/Ctrl + Enter` publishes, `Tab` accepts an assistant suggestion and
+  `Esc` closes any layer.
 - **Database-Backed Models**: `Profile`, `Post`, `Follow`, `PostLike`, `PostRepost`, `Bookmark`, and `Topic`.
 - **Supabase PostgreSQL Ready**: Connection pooling support, PgBouncer compatibility, SSL mode, and pre-generated DDL in `supabase_schema.sql`.
 - **RESTful JSON API**: Endpoints for posts, replies, likes, reposts, bookmarks, following, server-side search, profile editing, and post deletion.
@@ -114,5 +119,8 @@ provider (`athar-local` or `hosted:<model>`).
 - Images are validated by magic bytes and size before decoding; BLOBs live in the
   database, which keeps the feature working identically on SQLite, Supabase and
   ephemeral hosts.
+- Assistant requests are budgeted per caller (anonymous callers get 60 per
+  10 minutes, members 300) so a configured hosted model cannot be abused; the
+  feed widgets (`/api/ai/digest/`, `/api/ai/topics/`) are exempt.
 - The assistant, uploads and every interactive control are covered by
-  `python manage.py test core` (64 tests).
+  `python manage.py test core` (69 tests).

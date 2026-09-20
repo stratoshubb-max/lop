@@ -716,6 +716,7 @@
         clearSuggestions();
         resetComposerMode();
         updateComposerState();
+        store.remove(DRAFT_KEY);
 
         if (isReply) {
             const target = document.querySelector(`[data-post-id="${state.replyTarget}"]`);
@@ -734,6 +735,32 @@
             }
             showToast('You shared a new thought.');
         }
+    }
+
+    // --------------------------------------------------------------------- //
+    // Drafts survive a reload (accidental refresh, phone locking, navigation)
+    // --------------------------------------------------------------------- //
+    const DRAFT_KEY = 'athar_draft';
+    let draftTimer;
+
+    function saveDraft() {
+        if (!postInput || !state.authenticated || state.replyTarget) return;
+        window.clearTimeout(draftTimer);
+        draftTimer = window.setTimeout(() => {
+            const value = postInput.value;
+            if (value.trim()) store.set(DRAFT_KEY, value);
+            else store.remove(DRAFT_KEY);
+        }, 450);
+    }
+
+    function restoreDraft() {
+        if (!postInput || !state.authenticated) return;
+        const saved = store.get(DRAFT_KEY);
+        if (!saved || postInput.value.trim()) return;
+        postInput.value = saved;
+        updateComposerState();
+        scheduleComposeHints();
+        showToast('Unfinished draft restored — publish or clear it whenever you like.');
     }
 
     // --------------------------------------------------------------------- //
@@ -2054,6 +2081,7 @@
             event.preventDefault();
             const { payload } = await apiPost('/api/auth/logout/');
             setToken('');
+            store.remove(DRAFT_KEY);
             state.authenticated = false;
             window.location.href = '/';
             void payload;
@@ -2379,6 +2407,7 @@
     postInput?.addEventListener('input', () => {
         updateComposerState();
         scheduleComposeHints();
+        saveDraft();
     });
 
     postInput?.addEventListener('keydown', (event) => {
@@ -2594,6 +2623,7 @@
     // --------------------------------------------------------------------- //
     applyPreferences();
     updateComposerState();
+    restoreDraft();
     $$('.modal-layer, .ai-layer, .search-layer, .auth-layer').forEach((layer) => {
         if (layer.hidden) layer.style.display = 'none';
     });
