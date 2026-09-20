@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Profile(models.Model):
@@ -12,7 +13,7 @@ class Profile(models.Model):
     avatar_tone = models.CharField(max_length=30, default="violet")
     bio = models.CharField(max_length=160, blank=True)
     verified = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["display_name"]
@@ -39,7 +40,7 @@ class Follow(models.Model):
 class Topic(models.Model):
     category = models.CharField(max_length=80)
     name = models.CharField(max_length=120, unique=True)
-    rank = models.PositiveIntegerField(default=1)
+    rank = models.PositiveIntegerField(default=1, db_index=True)
 
     class Meta:
         ordering = ["rank", "name"]
@@ -63,7 +64,7 @@ class Post(models.Model):
     tags = models.JSONField(default=list, blank=True)
     topic = models.ForeignKey(Topic, null=True, blank=True, on_delete=models.SET_NULL, related_name="posts")
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies_to")
-    published_at = models.DateTimeField()
+    published_at = models.DateTimeField(default=timezone.now, db_index=True)
     published_label = models.CharField(max_length=40, default="الآن")
     verified = models.BooleanField(default=False)
     # Seed counts are retained as a baseline; new interactions are stored below.
@@ -75,6 +76,10 @@ class Post(models.Model):
         ordering = ["-published_at"]
         verbose_name = "منشور"
         verbose_name_plural = "منشورات"
+        indexes = [
+            models.Index(fields=["-published_at"], name="post_pub_desc_idx"),
+            models.Index(fields=["parent", "-published_at"], name="post_parent_pub_idx"),
+        ]
 
     def __str__(self):
         return f"{self.author_name}: {self.body[:42]}"

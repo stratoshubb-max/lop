@@ -15,13 +15,60 @@
     const authSubmit = document.getElementById('authSubmit');
     const authStatus = document.querySelector('meta[name="auth-status"]')?.content === 'true';
     let authMode = 'login';
-    const formatter = new Intl.NumberFormat('ar-EG', { useGrouping: false });
+    const formatter = new Intl.NumberFormat('en-US', { useGrouping: false });
     let toastTimer;
     let currentTab = 'all';
     let searchTerm = '';
     let searchTimer;
     let isPublishing = false;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    const websiteSettingsModal = document.getElementById('websiteSettingsModal');
+    const toggleReducedMotion = document.getElementById('toggleReducedMotion');
+    const toggleCompactDensity = document.getElementById('toggleCompactDensity');
+    const profileSettingsModal = document.getElementById('profileSettingsModal');
+    const profileSettingsForm = document.getElementById('profileSettingsForm');
+    const btnSaveProfileSettings = document.getElementById('btnSaveProfileSettings');
+    const editDisplayNameInput = document.getElementById('editDisplayNameInput');
+    const editBioInput = document.getElementById('editBioInput');
+    const editAvatarToneInput = document.getElementById('editAvatarToneInput');
+    const editAvatarPreview = document.getElementById('editAvatarPreview');
+    const displayNameCount = document.getElementById('displayNameCount');
+    const bioCount = document.getElementById('bioCount');
+    const profileSettingsError = document.getElementById('profileSettingsError');
+
+    function getStoredToken() {
+        try {
+            return localStorage.getItem('athar_session_token') || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function setStoredToken(token) {
+        try {
+            if (token) {
+                localStorage.setItem('athar_session_token', token);
+            } else {
+                localStorage.removeItem('athar_session_token');
+            }
+        } catch (e) {}
+    }
+
+    // Auto-sync token from URL if redirected after auth
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlAuthToken = urlParams.get('auth_token');
+    if (urlAuthToken) {
+        setStoredToken(urlAuthToken);
+        urlParams.delete('auth_token');
+        const newSearch = urlParams.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+    } else if (!authStatus && getStoredToken()) {
+        const token = getStoredToken();
+        const separator = window.location.search ? '&' : '?';
+        window.location.replace(`${window.location.pathname}${window.location.search}${separator}auth_token=${encodeURIComponent(token)}${window.location.hash}`);
+    }
 
     function readCookie(name) {
         const prefix = `${name}=`;
@@ -30,22 +77,26 @@
     }
 
     function apiHeaders() {
-        return {
+        const headers = {
             'Content-Type': 'application/json',
             'X-CSRFToken': readCookie('csrftoken') || csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
         };
+        const token = getStoredToken();
+        if (token) {
+            headers['X-Session-Token'] = token;
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
     }
 
     async function parseApiResponse(response) {
-        // Read as text first: Django's debug/CSRF pages are HTML even when a client expected JSON.
-        // Parsing manually keeps raw "Unexpected token <" errors out of the user-facing UI.
         const raw = await response.text();
         if (!raw.trim()) return {};
         try {
             return JSON.parse(raw);
         } catch (error) {
-            return { error: response.status === 403 ? 'انتهت صلاحية الحماية، أعد المحاولة.' : 'تعذّر الاتصال بالخادم.' };
+            return { error: response.status === 403 ? 'Session expired, please try again.' : 'Could not connect to server.' };
         }
     }
 
@@ -69,7 +120,7 @@
         like: '<svg viewBox="0 0 24 24" fill="none"><path d="M20.8 8.6c0 5.3-8.8 10-8.8 10s-8.8-4.7-8.8-10a4.5 4.5 0 0 1 8.8-1.5 4.5 4.5 0 0 1 8.8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
         bookmark: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 5.8A1.8 1.8 0 0 1 7.8 4h8.4A1.8 1.8 0 0 1 18 5.8V20l-6-3.6L6 20V5.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
         share: '<svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="18.5" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="m8.3 10.8 7.4-4M8.3 13.2l7.4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-        verified: '<span class="verified" title="حساب موثّق"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 2 1.3 2.3-.1.9 2.1 1.9 1.2-.5 2.2.7 2.2-1.6 1.6-.2 2.3-2.2.5L12 17l-2 .9L8.1 17l-2.2-.5-.2-2.3.7-2.2-1.6-1.6 1.9-1.2.9-2.1 2.3.1L10 2Z" fill="currentColor"/><path d="m7.1 10.1 1.8 1.8 4-4" stroke="#101114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
+        verified: '<span class="verified" title="Verified account"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 2 1.3 2.3-.1.9 2.1 1.9 1.2-.5 2.2.7 2.2-1.6 1.6-.2 2.3-2.2.5L12 17l-2 .9L8.1 17l-2.2-.5-.2-2.3-1.6-1.6.7-2.2-.5-2.2 1.9-1.2.9-2.1 2.3.1L10 2Z" fill="currentColor"/><path d="m7.1 10.1 1.8 1.8 4-4" stroke="#101114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
     };
 
     function number(value) {
@@ -77,20 +128,13 @@
     }
 
     function numericValue(value) {
-        const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
-        const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
-        const normalized = String(value ?? '')
-            .replace(/[٠-٩]/g, digit => String(arabicDigits.indexOf(digit)))
-            .replace(/[۰-۹]/g, digit => String(persianDigits.indexOf(digit)))
-            .replace(/[^0-9-]/g, '');
-        return Number(normalized) || 0;
+        return parseInt(String(value ?? '').replace(/[^0-9-]/g, ''), 10) || 0;
     }
 
     function showToast(message) {
         if (!toast || !toastMessage) return;
         toastMessage.textContent = message;
         toast.classList.remove('is-visible');
-        // Re-run the entrance motion when a second notification arrives quickly.
         void toast.offsetWidth;
         toast.classList.add('is-visible');
         window.clearTimeout(toastTimer);
@@ -101,20 +145,16 @@
         authMode = mode;
         const register = mode === 'register';
         const displayField = document.querySelector('.auth-display-field');
-        const handleField = document.querySelector('.auth-handle-field');
-        const usernameField = document.getElementById('authUsername')?.closest('.auth-field');
+        const usernameHint = document.querySelector('.auth-username-hint');
         const displayName = document.getElementById('authDisplayName');
-        const authHandle = document.getElementById('authHandle');
+        const username = document.getElementById('authUsername');
         const title = document.getElementById('authTitle');
         if (displayField) displayField.hidden = !register;
-        if (handleField) handleField.hidden = !register;
-        if (usernameField) usernameField.hidden = register;
+        if (usernameHint) usernameHint.hidden = !register;
         if (displayName) displayName.required = register;
-        if (authHandle) authHandle.required = register;
-        const username = document.getElementById('authUsername');
-        if (username) username.required = !register;
-        if (title) title.textContent = register ? 'مساحتك تبدأ من هنا.' : 'مرحبًا بعودتك.';
-        if (authSubmit) authSubmit.innerHTML = register ? 'إنشاء الحساب <span>↗</span>' : 'تسجيل الدخول <span>↗</span>';
+        if (username) username.required = true;
+        if (title) title.textContent = register ? 'Create your account' : 'Welcome back.';
+        if (authSubmit) authSubmit.innerHTML = register ? 'Create Account <span>↗</span>' : 'Sign In <span>↗</span>';
         document.querySelectorAll('[data-auth-tab]').forEach(tab => {
             const active = tab.dataset.authTab === mode;
             tab.classList.toggle('is-active', active);
@@ -143,8 +183,121 @@
     function requireAuthentication(mode = 'register') {
         if (authStatus) return false;
         openAuth(mode);
-        showToast('سجّل الدخول لتتفاعل مع المنشورات');
+        showToast('Please sign in to interact with thoughts');
         return true;
+    }
+
+    function applySavedPreferences() {
+        const savedTheme = localStorage.getItem('athar_theme') || 'auto';
+        setTheme(savedTheme, false);
+
+        const savedMotion = localStorage.getItem('athar_reduced_motion') === 'true';
+        if (toggleReducedMotion) toggleReducedMotion.checked = savedMotion;
+        document.documentElement.dataset.reducedMotion = savedMotion ? 'true' : 'false';
+
+        const savedDensity = localStorage.getItem('athar_compact_density') === 'true';
+        if (toggleCompactDensity) toggleCompactDensity.checked = savedDensity;
+        document.documentElement.dataset.compactDensity = savedDensity ? 'true' : 'false';
+    }
+
+    function setTheme(theme, save = true) {
+        if (save) {
+            localStorage.setItem('athar_theme', theme);
+        }
+        let effective = theme;
+        if (theme === 'auto') {
+            effective = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = effective;
+
+        document.querySelectorAll('[data-set-theme]').forEach(card => {
+            const isActive = card.dataset.setTheme === theme;
+            card.classList.toggle('is-active', isActive);
+            card.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        });
+    }
+
+    function openWebsiteSettings() {
+        if (!websiteSettingsModal) return;
+        websiteSettingsModal.hidden = false;
+        websiteSettingsModal.classList.remove('is-hidden');
+        websiteSettingsModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        applySavedPreferences();
+    }
+
+    function closeWebsiteSettings() {
+        if (!websiteSettingsModal) return;
+        websiteSettingsModal.hidden = true;
+        websiteSettingsModal.classList.add('is-hidden');
+        websiteSettingsModal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    function updateProfileCounters() {
+        if (displayNameCount && editDisplayNameInput) {
+            displayNameCount.textContent = `${editDisplayNameInput.value.length}/50`;
+        }
+        if (bioCount && editBioInput) {
+            bioCount.textContent = `${editBioInput.value.length}/160`;
+        }
+    }
+
+    function openProfileSettings() {
+        if (requireAuthentication('login')) return;
+        if (!profileSettingsModal) return;
+        profileSettingsModal.hidden = false;
+        profileSettingsModal.classList.remove('is-hidden');
+        profileSettingsModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        updateProfileCounters();
+        if (profileSettingsError) profileSettingsError.hidden = true;
+    }
+
+    function closeProfileSettings() {
+        if (!profileSettingsModal) return;
+        profileSettingsModal.hidden = true;
+        profileSettingsModal.classList.add('is-hidden');
+        profileSettingsModal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    async function loadProfileTab(tabName) {
+        const handle = document.body.dataset.profileHandle;
+        if (!handle || !feedList) return;
+
+        document.querySelectorAll('[data-profile-tab]').forEach(tab => {
+            const isActive = tab.dataset.profileTab === tabName;
+            tab.classList.toggle('is-active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        feedList.innerHTML = '<div class="empty-state">Loading thoughts...</div>';
+
+        try {
+            const { response, payload } = await apiRequest(`/api/profiles/${encodeURIComponent(handle)}/posts/?tab=${encodeURIComponent(tabName)}`, {
+                headers: apiHeaders()
+            });
+            if (!response.ok) throw new Error('Failed to load thoughts');
+
+            feedList.innerHTML = '';
+            const posts = payload.posts || [];
+            if (posts.length === 0) {
+                const emptyMessages = {
+                    thoughts: 'No thoughts published yet.',
+                    replies: 'No replies yet.',
+                    likes: 'No liked thoughts yet.'
+                };
+                feedList.innerHTML = `<div class="empty-state">${emptyMessages[tabName] || 'No thoughts here yet.'}</div>`;
+                return;
+            }
+
+            posts.forEach(post => {
+                feedList.appendChild(renderPost(post));
+            });
+        } catch (err) {
+            feedList.innerHTML = `<div class="empty-state">Could not load ${tabName}.</div>`;
+        }
     }
 
     function replayClass(element, className, duration = 700) {
@@ -189,31 +342,37 @@
         const tags = Array.isArray(post.tags) ? post.tags : [];
         article.className = 'post-card';
         article.dataset.postId = post.id || `local-${Date.now()}`;
+        article.dataset.isOwner = post.is_owner ? 'true' : 'false';
         article.dataset.following = post.following ? 'true' : 'false';
         article.dataset.searchable = `${post.author_name} ${post.handle} ${post.body}`;
+        const moreButtonHtml = post.is_owner
+            ? '<button class="more-button is-owner" type="button" data-action="delete-post" title="Delete thought" aria-label="Delete thought"><svg viewBox="0 0 24 24" fill="none"><path d="M19 7l-.8 12.1A2 2 0 0 1 16.2 21H7.8a2 2 0 0 1-2-1.9L5 7m5 4v6m4-6v6M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 7h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+            : '<button class="more-button" type="button" data-toast="Post options" data-requires-auth aria-label="Options"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg></button>';
         article.innerHTML = `
             <div class="post-header">
-                <span class="avatar avatar-large tone-${escapeHTML(post.avatar_tone || 'lime')}">${escapeHTML(post.avatar_initial || 'أ')}</span>
+                <a href="/u/${encodeURIComponent(post.handle || '')}/" class="post-header-link">
+                    <span class="avatar avatar-large tone-${escapeHTML(post.avatar_tone || 'lime')}">${escapeHTML(post.avatar_initial || 'A')}</span>
+                </a>
                 <div class="post-author">
                     <div class="author-line">
-                        <strong>${escapeHTML(post.author_name || 'أنت')}</strong>
+                        <a href="/u/${encodeURIComponent(post.handle || '')}/"><strong>${escapeHTML(post.author_name || 'You')}</strong></a>
                         ${post.verified ? icons.verified : ''}
-                        <span class="post-handle">@${escapeHTML(post.handle || 'you')}</span>
+                        <a href="/u/${encodeURIComponent(post.handle || '')}/"><span class="post-handle">@${escapeHTML(post.handle || 'you')}</span></a>
                     </div>
-                    <div class="post-meta"><span>${escapeHTML(post.published_label || 'الآن')}</span><i></i><span>عام</span></div>
+                    <div class="post-meta"><span>${escapeHTML(post.published_label || 'Just now')}</span><i></i><span>Public</span></div>
                 </div>
-                <button class="more-button" type="button" data-toast="خيارات المنشور" data-requires-auth aria-label="المزيد"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg></button>
+                ${moreButtonHtml}
             </div>
             <div class="post-body">
                 <p>${escapeHTML(post.body || '')}</p>
                 ${tags.length ? `<div class="post-tags">${tags.map(tag => `<span>#${escapeHTML(tag)}</span>`).join('')}</div>` : ''}
             </div>
             <div class="post-actions">
-                <button class="post-action action-reply" type="button" data-action="reply" aria-label="الرد على المنشور">${icons.reply}<span data-count="replies">${number(post.replies)}</span></button>
-                <button class="post-action action-repost${post.is_reposted ? ' is-active' : ''}" type="button" data-action="repost" aria-label="إعادة نشر">${icons.repost}<span data-count="reposts">${number(post.reposts)}</span></button>
-                <button class="post-action action-like${post.is_liked ? ' is-active' : ''}" type="button" data-action="like" aria-label="الإعجاب بالمنشور">${icons.like}<span data-count="likes">${number(post.likes)}</span></button>
-                <button class="post-action action-bookmark${post.is_bookmarked ? ' is-active' : ''}" type="button" data-action="bookmark" aria-label="حفظ المنشور">${icons.bookmark}</button>
-                <button class="post-action action-share" type="button" data-action="share" aria-label="مشاركة المنشور">${icons.share}</button>
+                <button class="post-action action-reply" type="button" data-action="reply" aria-label="Reply">${icons.reply}<span data-count="replies">${number(post.replies)}</span></button>
+                <button class="post-action action-repost${post.is_reposted ? ' is-active' : ''}" type="button" data-action="repost" aria-label="Repost">${icons.repost}<span data-count="reposts">${number(post.reposts)}</span></button>
+                <button class="post-action action-like${post.is_liked ? ' is-active' : ''}" type="button" data-action="like" aria-label="Like">${icons.like}<span data-count="likes">${number(post.likes)}</span></button>
+                <button class="post-action action-bookmark${post.is_bookmarked ? ' is-active' : ''}" type="button" data-action="bookmark" aria-label="Save">${icons.bookmark}</button>
+                <button class="post-action action-share" type="button" data-action="share" aria-label="Share">${icons.share}</button>
             </div>`;
         return article;
     }
@@ -244,7 +403,7 @@
         });
         if (!response.ok || !payload.post) {
             if (payload.requires_auth) openAuth('login');
-            throw new Error(payload.error || 'تعذّر حفظ التغيير');
+            throw new Error(payload.error || 'Could not save changes');
         }
         applyPostState(card, payload.post);
         return payload;
@@ -258,13 +417,28 @@
         });
         if (!response.ok || typeof payload.following !== 'boolean') {
             if (payload.requires_auth) openAuth('login');
-            throw new Error(payload.error || 'تعذّرت متابعة الحساب');
+            throw new Error(payload.error || 'Could not update follow status');
         }
         const following = Boolean(payload.following);
         button.classList.toggle('is-following', following);
-        button.textContent = following ? 'تتابع' : 'تابع';
+        button.textContent = following ? 'Following' : 'Follow';
         button.setAttribute('aria-pressed', following ? 'true' : 'false');
         replayClass(button, 'is-popping', 520);
+
+        const profileFollowersCount = document.getElementById('profileFollowersCount');
+        if (profileFollowersCount) {
+            let count = parseInt(profileFollowersCount.textContent, 10) || 0;
+            count = following ? count + 1 : Math.max(0, count - 1);
+            profileFollowersCount.textContent = count;
+        }
+
+        feedList?.querySelectorAll('.post-card').forEach(card => {
+            const postHandle = card.querySelector('.post-handle')?.textContent.trim().replace(/^@/, '');
+            if (postHandle === handle) {
+                card.dataset.following = following ? 'true' : 'false';
+            }
+        });
+        updateVisibility();
         return following;
     }
 
@@ -274,8 +448,8 @@
         let visible = 0;
         cards.forEach(card => {
             const matchesTab = currentTab === 'all' || card.dataset.following === 'true';
-            const searchable = (card.dataset.searchable || card.textContent).toLocaleLowerCase('ar');
-            const matchesSearch = !searchTerm || searchable.includes(searchTerm.toLocaleLowerCase('ar'));
+            const searchable = (card.dataset.searchable || card.textContent).toLowerCase();
+            const matchesSearch = !searchTerm || searchable.includes(searchTerm.toLowerCase());
             const shouldShow = matchesTab && matchesSearch;
             card.hidden = !shouldShow;
             if (shouldShow) visible += 1;
@@ -283,8 +457,8 @@
         if (filteredEmpty) {
             filteredEmpty.hidden = visible > 0;
             filteredEmpty.textContent = searchTerm
-                ? `لم نعثر على نتائج لـ «${searchTerm}». جرّب كلمة أخرى.`
-                : 'لا يوجد شيء هنا بعد. جرّب تبويب «لك».';
+                ? `No results for "${searchTerm}". Try another keyword.`
+                : 'No thoughts here yet. Try the "For you" tab.';
         }
     }
 
@@ -295,7 +469,7 @@
         const replyTo = postInput.dataset.replyTo || '';
         isPublishing = true;
         updateComposerState();
-        publishButton.textContent = replyTo ? 'جارٍ الرد…' : 'جارٍ النشر…';
+        publishButton.textContent = replyTo ? 'Replying...' : 'Publishing...';
         try {
             const endpoint = replyTo ? `/api/posts/${encodeURIComponent(replyTo)}/reply/` : '/api/posts/';
             const { response, payload } = await apiRequest(endpoint, {
@@ -305,13 +479,15 @@
             });
             if (!response.ok || !payload.post) {
                 if (payload.requires_auth) openAuth('login');
-                throw new Error(payload.error || 'تعذّر الحفظ');
+                throw new Error(payload.error || 'Could not save thought');
             }
             if (replyTo) {
                 const target = feedList.querySelector(`[data-post-id="${CSS.escape(replyTo)}"]`);
                 if (target) applyPostState(target, payload.post);
-                showToast('وصل ردّك إلى المحادثة');
+                showToast('Your reply was added to the conversation');
             } else {
+                const emptyState = feedList.querySelector('.empty-state');
+                if (emptyState) emptyState.remove();
                 const card = renderPost(payload.post);
                 feedList.prepend(card);
                 currentTab = 'all';
@@ -321,16 +497,16 @@
                     tab.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
                 updateVisibility();
-                showToast('تركْت أثرًا جديدًا في المساحة');
+                showToast('You shared a new thought');
             }
             postInput.value = '';
             delete postInput.dataset.replyTo;
             resetComposerMode();
         } catch (error) {
-            showToast(error.message || 'حدث خطأ غير متوقع');
+            showToast(error.message || 'An unexpected error occurred');
         } finally {
             isPublishing = false;
-            publishButton.textContent = 'انشر الأثر';
+            publishButton.textContent = 'Share Thought';
             updateComposerState();
         }
     }
@@ -351,15 +527,22 @@
         document.body.style.overflow = '';
     }
 
-    async function loadSearchResults(query) {
+    async function loadSearchResults(query = '', tab = '') {
         try {
-            const { response, payload } = await apiRequest(`/api/posts/?q=${encodeURIComponent(query)}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            if (!response.ok || query !== searchTerm) return;
-            if (!Array.isArray(payload.posts)) throw new Error(payload.error || 'تعذّر البحث الآن.');
-            feedList.replaceChildren(...payload.posts.map(renderPost));
+            let url = `/api/posts/?q=${encodeURIComponent(query)}`;
+            if (tab) url += `&tab=${encodeURIComponent(tab)}`;
+            const { response, payload } = await apiRequest(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) return;
+            if (!Array.isArray(payload.posts)) throw new Error(payload.error || 'Could not load thoughts.');
+            if (payload.posts.length === 0) {
+                feedList.innerHTML = tab === 'bookmarks'
+                    ? '<div class="empty-state">No saved thoughts yet. Click the save icon on any thought to save it here.</div>'
+                    : '<div class="empty-state">No thoughts found. Be the first to leave a thought.</div>';
+            } else {
+                feedList.replaceChildren(...payload.posts.map(renderPost));
+            }
             updateVisibility();
         } catch (error) {
-            // Keep the local filter visible if the network is temporarily unavailable.
             updateVisibility();
         }
     }
@@ -369,8 +552,8 @@
         searchTerm = searchInput.value.trim();
         if (searchHint) {
             searchHint.textContent = searchTerm
-                ? `نتائج البحث عن «${searchTerm}» تتحدث مع كل حرف.`
-                : 'اكتب كلمة للبحث في الأصوات والمنشورات والمواضيع.';
+                ? `Showing results for "${searchTerm}"...`
+                : 'Search thoughts, voices, and topics in real-time.';
         }
         updateVisibility();
         window.clearTimeout(searchTimer);
@@ -379,9 +562,9 @@
 
     function setComposerMode(isReply) {
         const label = document.querySelector('.compose-heading .section-label');
-        if (label) label.textContent = isReply ? 'ردّك' : 'بصوتك';
-        if (postInput) postInput.placeholder = isReply ? 'اكتب ردّك على هذا الأثر…' : 'ما الأثر الذي تريد أن تتركه اليوم؟';
-        if (publishButton) publishButton.textContent = isReply ? 'أرسل الرد' : 'انشر الأثر';
+        if (label) label.textContent = isReply ? 'Your reply' : 'In your voice';
+        if (postInput) postInput.placeholder = isReply ? 'Write your reply to this thought...' : 'What thought do you want to leave today?';
+        if (publishButton) publishButton.textContent = isReply ? 'Send Reply' : 'Share Thought';
     }
 
     function resetComposerMode() {
@@ -408,12 +591,36 @@
         if (target) createRipple(target, event);
     });
 
-    // One delegated listener keeps dynamically published posts interactive too.
     document.addEventListener('click', event => {
         const openComposer = event.target.closest('[data-open-composer]');
         if (openComposer) {
             event.preventDefault();
             if (!requireAuthentication('register')) scrollToComposer();
+            return;
+        }
+
+        const logoutTrigger = event.target.closest('[data-logout]');
+        if (logoutTrigger) {
+            event.preventDefault();
+            (async () => {
+                try {
+                    await apiRequest('/api/auth/logout/', {
+                        method: 'POST',
+                        headers: apiHeaders(),
+                        body: JSON.stringify({})
+                    });
+                } catch (err) {}
+                setStoredToken('');
+                window.location.href = '/';
+            })();
+            return;
+        }
+
+        const refreshTrigger = event.target.closest('.feed-view-button');
+        if (refreshTrigger) {
+            event.preventDefault();
+            replayClass(refreshTrigger, 'is-spinning', 700);
+            loadSearchResults('').then(() => showToast('Feed refreshed'));
             return;
         }
 
@@ -436,6 +643,72 @@
             return;
         }
 
+        const openProfileSettingsBtn = event.target.closest('[data-open-profile-settings]');
+        if (openProfileSettingsBtn) {
+            event.preventDefault();
+            openProfileSettings();
+            return;
+        }
+
+        const closeProfileSettingsBtn = event.target.closest('[data-close-profile-settings]');
+        if (closeProfileSettingsBtn) {
+            event.preventDefault();
+            closeProfileSettings();
+            return;
+        }
+
+        if (event.target.classList.contains('modal-backdrop') || event.target.classList.contains('modal-layer')) {
+            event.preventDefault();
+            closeWebsiteSettings();
+            closeProfileSettings();
+            return;
+        }
+
+        const openWebsiteSettingsBtn = event.target.closest('[data-open-website-settings]');
+        if (openWebsiteSettingsBtn) {
+            event.preventDefault();
+            openWebsiteSettings();
+            return;
+        }
+
+        const closeWebsiteSettingsBtn = event.target.closest('[data-close-website-settings]');
+        if (closeWebsiteSettingsBtn) {
+            event.preventDefault();
+            closeWebsiteSettings();
+            return;
+        }
+
+        const themeCard = event.target.closest('[data-set-theme]');
+        if (themeCard) {
+            event.preventDefault();
+            setTheme(themeCard.dataset.setTheme);
+            showToast('Ambiance updated');
+            return;
+        }
+
+        const toneChoice = event.target.closest('[data-tone-choice]');
+        if (toneChoice) {
+            event.preventDefault();
+            const tone = toneChoice.dataset.toneChoice;
+            if (editAvatarToneInput) editAvatarToneInput.value = tone;
+            document.querySelectorAll('[data-tone-choice]').forEach(swatch => {
+                const isSelected = swatch === toneChoice;
+                swatch.classList.toggle('is-active', isSelected);
+                swatch.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+            });
+            if (editAvatarPreview) {
+                editAvatarPreview.className = `avatar avatar-hero tone-${tone}`;
+            }
+            return;
+        }
+
+        const profileTab = event.target.closest('[data-profile-tab]');
+        if (profileTab) {
+            event.preventDefault();
+            loadProfileTab(profileTab.dataset.profileTab);
+            return;
+        }
+
         const protectedTarget = event.target.closest('[data-requires-auth]');
         if (protectedTarget && requireAuthentication('login')) return;
 
@@ -452,16 +725,16 @@
             const wasFollowing = follow.classList.contains('is-following');
             const handle = follow.dataset.handle;
             follow.classList.toggle('is-following', !wasFollowing);
-            follow.textContent = wasFollowing ? 'تابع' : 'تتابع';
+            follow.textContent = wasFollowing ? 'Follow' : 'Following';
             follow.setAttribute('aria-pressed', wasFollowing ? 'false' : 'true');
             follow.disabled = true;
             toggleFollow(handle, follow, wasFollowing)
-                .then(following => showToast(following ? 'أضفناه إلى دوائرك' : 'أزلناه من دوائرك'))
+                .then(following => showToast(following ? 'Added to your circles' : 'Removed from your circles'))
                 .catch(error => {
                     follow.classList.toggle('is-following', wasFollowing);
-                    follow.textContent = wasFollowing ? 'تتابع' : 'تابع';
+                    follow.textContent = wasFollowing ? 'Following' : 'Follow';
                     follow.setAttribute('aria-pressed', wasFollowing ? 'true' : 'false');
-                    showToast(error.message || 'لم يتم حفظ التغيير');
+                    showToast(error.message || 'Could not update follow');
                 })
                 .finally(() => { follow.disabled = false; });
             return;
@@ -473,13 +746,67 @@
             return;
         }
 
+        const deleteTrigger = event.target.closest('[data-action="delete-post"]');
+        if (deleteTrigger) {
+            event.preventDefault();
+            const card = deleteTrigger.closest('.post-card');
+            if (!card) return;
+            if (confirm('Are you sure you want to delete this thought?')) {
+                deleteTrigger.disabled = true;
+                apiRequest(`/api/posts/${encodeURIComponent(card.dataset.postId)}/delete/`, {
+                    method: 'POST',
+                    headers: apiHeaders(),
+                    body: JSON.stringify({})
+                }).then(({ response, payload }) => {
+                    if (response.ok && payload.deleted) {
+                        card.style.transition = 'all 0.25s ease-out';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.95)';
+                        window.setTimeout(() => {
+                            card.remove();
+                            if (feedList.querySelectorAll('.post-card').length === 0) {
+                                feedList.innerHTML = '<div class="empty-state">No thoughts yet. Be the first to share one.</div>';
+                            }
+                        }, 250);
+                        showToast('Thought deleted successfully');
+                    } else {
+                        showToast(payload.error || 'Could not delete thought');
+                        deleteTrigger.disabled = false;
+                    }
+                }).catch(() => {
+                    showToast('Could not delete thought');
+                    deleteTrigger.disabled = false;
+                });
+            }
+            return;
+        }
+
         const nav = event.target.closest('[data-nav]');
         if (nav) {
             event.preventDefault();
             document.querySelectorAll('[data-nav]').forEach(item => item.classList.toggle('is-active', item === nav));
-            const destination = nav.dataset.nav === 'discover' ? document.getElementById('discover') : nav.dataset.nav === 'circles' ? document.getElementById('circles') : document.getElementById('feed');
+            const navType = nav.dataset.nav;
+            if (navType === 'bookmarks') {
+                if (requireAuthentication('login')) return;
+                showToast('Your saved thoughts');
+                document.getElementById('feed')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const feedTitle = document.querySelector('.feed-heading h1');
+                if (feedTitle) feedTitle.textContent = 'Saved';
+                const feedDesc = document.querySelector('.feed-heading p');
+                if (feedDesc) feedDesc.textContent = 'Thoughts and ideas you saved for later.';
+                loadSearchResults('', 'bookmarks');
+                return;
+            }
+            if (navType === 'home') {
+                const feedTitle = document.querySelector('.feed-heading h1');
+                if (feedTitle) feedTitle.textContent = 'Feed';
+                const feedDesc = document.querySelector('.feed-heading p');
+                if (feedDesc) feedDesc.textContent = 'Ideas from your circles, delivered quietly.';
+                loadSearchResults('', '');
+            }
+            const destination = navType === 'discover' ? document.getElementById('discover') : navType === 'circles' ? document.getElementById('circles') : document.getElementById('feed');
             destination?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            if (nav.dataset.nav !== 'home') showToast(nav.dataset.nav === 'discover' ? 'اكتشف ما يتحرك الآن' : 'دوائرك الأقرب إلى صوتك');
+            if (navType !== 'home' && navType !== 'bookmarks') showToast(navType === 'discover' ? 'Explore what is moving now' : 'Your circles and community');
             return;
         }
 
@@ -507,7 +834,7 @@
         if (!card) return;
 
         const actionType = action.dataset.action;
-        if (['like', 'repost', 'bookmark', 'reply', 'share'].includes(actionType) && requireAuthentication('login')) return;
+        if (['like', 'repost', 'bookmark', 'reply'].includes(actionType) && requireAuthentication('login')) return;
         if (actionType === 'like' || actionType === 'repost' || actionType === 'bookmark') {
             const wasActive = action.classList.contains('is-active');
             const countKey = actionType === 'like' ? 'likes' : actionType === 'repost' ? 'reposts' : null;
@@ -521,7 +848,7 @@
             syncPostAction(card, actionType)
                 .then(payload => {
                     const active = payload.active;
-                    showToast(actionType === 'like' ? (active ? 'وصل إعجابك' : 'أزيل إعجابك') : actionType === 'repost' ? (active ? 'أعدت نشر هذا الأثر' : 'أزلت إعادة النشر') : (active ? 'حُفظ في مجموعتك' : 'أزيل من مجموعتك'));
+                    showToast(actionType === 'like' ? (active ? 'Added to your likes' : 'Like removed') : actionType === 'repost' ? (active ? 'Reposted this thought' : 'Removed repost') : (active ? 'Saved to your collection' : 'Removed from collection'));
                 })
                 .catch(error => {
                     action.classList.toggle('is-active', wasActive);
@@ -529,7 +856,7 @@
                         const count = action.querySelector(`[data-count="${countKey}"]`);
                         if (count) count.textContent = number(numericValue(count.textContent) + (wasActive ? 1 : -1));
                     }
-                    showToast(error.message || 'لم يتم حفظ التغيير');
+                    showToast(error.message || 'Could not save changes');
                 })
                 .finally(() => { action.disabled = false; });
             return;
@@ -538,16 +865,16 @@
             if (postInput) postInput.dataset.replyTo = card.dataset.postId;
             setComposerMode(true);
             scrollToComposer();
-            showToast('اكتب ردّك في مساحة الكتابة');
+            showToast('Write your reply in the composer above');
             return;
         }
         if (actionType === 'share') {
             replayClass(action, 'is-spinning', 620);
             const text = card.querySelector('.post-body p')?.textContent || '';
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => showToast('نُسخ الأثر إلى الحافظة')).catch(() => showToast('الأثر جاهز للمشاركة'));
+                navigator.clipboard.writeText(text).then(() => showToast('Copied thought to clipboard')).catch(() => showToast('Thought ready to share'));
             } else {
-                showToast('الأثر جاهز للمشاركة');
+                showToast('Thought ready to share');
             }
         }
     });
@@ -555,24 +882,177 @@
     document.getElementById('searchTrigger')?.addEventListener('click', () => openSearch());
     searchInput?.addEventListener('input', filterFromSearch);
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && searchLayer && !searchLayer.hidden) closeSearch();
-        if (event.key === 'Escape' && authLayer && !authLayer.hidden) closeAuth();
+        if (event.key === 'Escape') {
+            closeSearch();
+            closeAuth();
+            closeProfileSettings();
+            closeWebsiteSettings();
+        }
+        if ((event.metaKey || event.ctrlKey) && event.key === '5') {
+            event.preventDefault();
+            openWebsiteSettings();
+        }
+        if ((event.metaKey || event.ctrlKey) && event.key === '4') {
+            const profileLink = document.querySelector('a[data-nav="profile"], .side-nav a[href^="/u/"], .mobile-nav a[href^="/u/"]');
+            if (profileLink) {
+                event.preventDefault();
+                window.location.href = profileLink.href;
+            }
+        }
         if (event.key === '/' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
             event.preventDefault();
             openSearch();
         }
     });
 
+    btnSaveProfileSettings?.addEventListener('click', async () => {
+        if (!btnSaveProfileSettings) return;
+        const displayName = editDisplayNameInput ? editDisplayNameInput.value.trim() : '';
+        const bio = editBioInput ? editBioInput.value.trim() : '';
+        const avatarTone = editAvatarToneInput ? editAvatarToneInput.value.trim() : 'violet';
+
+        if (!displayName) {
+            if (profileSettingsError) {
+                profileSettingsError.textContent = 'Display Name cannot be empty.';
+                profileSettingsError.hidden = false;
+            }
+            return;
+        }
+
+        btnSaveProfileSettings.disabled = true;
+        btnSaveProfileSettings.textContent = 'Saving...';
+        if (profileSettingsError) profileSettingsError.hidden = true;
+
+        try {
+            const { response, payload } = await apiRequest('/api/auth/update_profile/', {
+                method: 'POST',
+                headers: apiHeaders(),
+                body: JSON.stringify({
+                    display_name: displayName,
+                    bio: bio,
+                    avatar_tone: avatarTone
+                })
+            });
+
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Failed to update profile');
+            }
+
+            const updated = payload.profile;
+            const profileFullname = document.getElementById('profileFullname');
+            if (profileFullname) profileFullname.textContent = updated.display_name;
+            const profileTopName = document.querySelector('.profile-top-name');
+            if (profileTopName) profileTopName.textContent = updated.display_name;
+            const profileBioDisplay = document.getElementById('profileBioDisplay');
+            if (profileBioDisplay) profileBioDisplay.textContent = updated.bio || 'No bio yet.';
+            const heroAvatar = document.getElementById('profileHeroAvatar');
+            if (heroAvatar) {
+                heroAvatar.className = `avatar avatar-hero tone-${updated.avatar_tone}`;
+                heroAvatar.textContent = updated.avatar_initial;
+            }
+            const coverBanner = document.querySelector('.profile-cover-banner');
+            if (coverBanner) {
+                coverBanner.className = `profile-cover-banner tone-bg-${updated.avatar_tone}`;
+            }
+
+            const profileMain = document.querySelector('.profile-card .profile-main');
+            if (profileMain) {
+                const nameElem = profileMain.querySelector('strong');
+                if (nameElem) nameElem.textContent = updated.display_name;
+                const av = profileMain.querySelector('.avatar');
+                if (av) {
+                    av.className = `avatar avatar-profile tone-${updated.avatar_tone}`;
+                    av.textContent = updated.avatar_initial;
+                }
+            }
+            const profileCardBio = document.querySelector('.profile-card .profile-bio');
+            if (profileCardBio) profileCardBio.textContent = updated.bio || '';
+
+            closeProfileSettings();
+            showToast('Profile updated successfully');
+        } catch (error) {
+            if (profileSettingsError) {
+                profileSettingsError.textContent = error.message;
+                profileSettingsError.hidden = false;
+            }
+        } finally {
+            btnSaveProfileSettings.disabled = false;
+            btnSaveProfileSettings.textContent = 'Save';
+        }
+    });
+
+    toggleReducedMotion?.addEventListener('change', () => {
+        const checked = toggleReducedMotion.checked;
+        localStorage.setItem('athar_reduced_motion', checked ? 'true' : 'false');
+        document.documentElement.dataset.reducedMotion = checked ? 'true' : 'false';
+        showToast(checked ? 'Calm motion enabled' : 'Default motion enabled');
+    });
+
+    toggleCompactDensity?.addEventListener('change', () => {
+        const checked = toggleCompactDensity.checked;
+        localStorage.setItem('athar_compact_density', checked ? 'true' : 'false');
+        document.documentElement.dataset.compactDensity = checked ? 'true' : 'false';
+        showToast(checked ? 'Compact density enabled' : 'Comfortable density enabled');
+    });
+
+    editDisplayNameInput?.addEventListener('input', updateProfileCounters);
+    editBioInput?.addEventListener('input', updateProfileCounters);
+
+    if (websiteSettingsModal) {
+        websiteSettingsModal.hidden = true;
+        websiteSettingsModal.classList.add('is-hidden');
+    }
+    if (profileSettingsModal) {
+        profileSettingsModal.hidden = true;
+        profileSettingsModal.classList.add('is-hidden');
+    }
+
+    applySavedPreferences();
+
     authForm?.addEventListener('submit', async event => {
         event.preventDefault();
         if (!authSubmit) return;
-        const displayName = document.getElementById('authDisplayName')?.value.trim() || '';
-        const handle = document.getElementById('authHandle')?.value.trim().toLowerCase() || '';
-        const username = document.getElementById('authUsername')?.value.trim() || '';
+        let displayName = document.getElementById('authDisplayName')?.value.trim() || '';
+        let username = (document.getElementById('authUsername')?.value.trim().toLowerCase() || '').replace(/^@+/, '');
         const password = document.getElementById('authPassword')?.value || '';
+
+        if (authMode === 'register') {
+            if (!username && displayName) {
+                const candidate = displayName.toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 30);
+                if (candidate) username = candidate;
+            }
+            if (!displayName && username) {
+                displayName = username;
+            }
+            if (!username || username.length < 1 || username.length > 30) {
+                if (authError) {
+                    authError.textContent = 'Username must be between 1 and 30 characters.';
+                    authError.hidden = false;
+                }
+                return;
+            }
+        } else {
+            if (!username) {
+                if (authError) {
+                    authError.textContent = 'Please enter your username.';
+                    authError.hidden = false;
+                }
+                return;
+            }
+        }
+
+        if (!password || password.length < 8) {
+            if (authError) {
+                authError.textContent = 'Password must be at least 8 characters.';
+                authError.hidden = false;
+            }
+            return;
+        }
+
         const payload = authMode === 'register'
-            ? { display_name: displayName, handle, password }
+            ? { display_name: displayName, handle: username, password }
             : { username, password };
+
         authSubmit.disabled = true;
         if (authError) authError.hidden = true;
         try {
@@ -581,8 +1061,13 @@
                 headers: apiHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (!response.ok || !result.ok) throw new Error(result.error || 'تعذّر إكمال العملية');
-            window.location.reload();
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Could not complete operation');
+            if (result.token) {
+                setStoredToken(result.token);
+            }
+            showToast(authMode === 'register' ? `Account created! Welcome, @${username}` : 'Signed in successfully');
+            const targetUrl = result.token ? `/?auth_token=${encodeURIComponent(result.token)}` : '/';
+            window.location.href = targetUrl;
         } catch (error) {
             if (authError) {
                 authError.textContent = error.message;
